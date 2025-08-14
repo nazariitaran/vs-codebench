@@ -1,6 +1,6 @@
 # VS CodeBench
 
-[![CI](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml/badge.svg)](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml)
+[![CI](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml)
 [![Release](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml/badge.svg)](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml)
 [![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/nazariitaran.vs-codebench?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/nazariitaran.vs-codebench)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
