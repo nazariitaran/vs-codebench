@@ -1,0 +1,472 @@
+{
+  "name": "vs-codebench",
+  "displayName": "VS CodeBench",
+  "description": "A productivity extension that helps you organize your tasks, code notes, and bookmarks efficiently.",
+  "version": "1.0.0",
+  "publisher": "nazariitaran",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "productivity",
+    "todo",
+    "tasks",
+    "bookmarks",
+    "notes",
+    "scratchpad",
+    "organization",
+    "utilities"
+  ],
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nazariitaran/vs-codebench.git"
+  },
+  "homepage": "https://github.com/nazariitaran/vs-codebench",
+  "bugs": {
+    "url": "https://github.com/nazariitaran/vs-codebench/issues"
+  },
+  "license": "MIT",
+  "pricing": "Free",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vs-codebench.addTodo",
+        "title": "Add Todo",
+        "icon": "$(add)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.editTodo",
+        "title": "Edit Todo",
+        "icon": "$(edit)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.deleteTodo",
+        "title": "Delete Todo",
+        "icon": "$(trash)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.moveTodoUp",
+        "title": "Move Todo Up",
+        "icon": "$(arrow-up)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.moveTodoDown",
+        "title": "Move Todo Down",
+        "icon": "$(arrow-down)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.toggleTodo",
+        "title": "Toggle Todo",
+        "icon": "$(check)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.addSubTodo",
+        "title": "Add Sub-Todo",
+        "icon": "$(add)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.showTodoStats",
+        "title": "Show Todo Statistics",
+        "icon": "$(info)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.clearCheckedTodos",
+        "title": "Todos: Remove Checked",
+        "icon": "$(clear-all)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.clearAllTodos",
+        "title": "Todos: Clear All",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.clearAllBookmarks",
+        "title": "Bookmarks: Clear All",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.toggleBookmark",
+        "title": "Toggle Bookmark",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.addBookmark",
+        "title": "Add Bookmark",
+        "icon": "$(add)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.editBookmark",
+        "title": "Edit Bookmark",
+        "icon": "$(pencil)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.deleteBookmark",
+        "title": "Delete Bookmark",
+        "icon": "$(trash)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.changeBookmarkColor",
+        "title": "Change Bookmark Color",
+        "icon": "$(symbol-color)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.addFolder",
+        "title": "Add Folder",
+        "icon": "$(new-folder)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.addRootFolder",
+        "title": "New Bookmark Folder",
+        "icon": "$(new-folder)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.editFolder",
+        "title": "Edit Folder",
+        "icon": "$(edit)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.deleteFolder",
+        "title": "Delete Folder",
+        "icon": "$(trash)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.createScratchpad",
+        "title": "Create Scratchpad",
+        "icon": "$(new-file)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.openScratchFile",
+        "title": "Open Scratchpad File",
+        "icon": "$(file)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.renameScratchFile",
+        "title": "Rename Scratchpad File",
+        "icon": "$(edit)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.deleteScratchFile",
+        "title": "Delete Scratchpad File",
+        "icon": "$(trash)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.clearAllScratchpads",
+        "title": "Scratchpads: Clear All",
+        "category": "CodeBench"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codebenchExplorer",
+          "title": "CodeBench",
+          "icon": "media/vscodebench.png"
+        }
+      ]
+    },
+    "views": {
+      "codebenchExplorer": [
+        {
+          "id": "todosView",
+          "name": "Todos"
+        },
+        {
+          "id": "bookmarksView",
+          "name": "Bookmarks"
+        },
+        {
+          "id": "scratchpadsView",
+          "name": "Scratchpads"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "vs-codebench.addTodo",
+        "key": "ctrl+alt+t",
+        "mac": "cmd+alt+t"
+      },
+      {
+        "command": "vs-codebench.createScratchpad",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
+      },
+      {
+        "command": "vs-codebench.toggleBookmark",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorTextFocus && resourceScheme == 'file'"
+      },
+      {
+        "command": "vs-codebench.changeBookmarkColor",
+        "key": "ctrl+alt+shift+k",
+        "mac": "cmd+alt+shift+k",
+        "when": "editorTextFocus && resourceScheme == 'file' && codebench.lineHasBookmark"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "vs-codebench.addTodo",
+          "when": "view == todosView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vs-codebench.showTodoStats",
+          "when": "view == todosView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vs-codebench.clearCheckedTodos",
+          "when": "view == todosView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "vs-codebench.addRootFolder",
+          "when": "view == bookmarksView",
+          "group": "navigation@5"
+        },
+        {
+          "command": "vs-codebench.addBookmark",
+          "when": "view == bookmarksView",
+          "group": "navigation@6"
+        },
+        {
+          "command": "vs-codebench.createScratchpad",
+          "when": "view == scratchpadsView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "vs-codebench.addSubTodo",
+          "when": "view == todosView && viewItem == todoItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "vs-codebench.editTodo",
+          "when": "view == todosView && (viewItem == todoItem || viewItem == todoItemMaxDepth)",
+          "group": "inline@2"
+        },
+        {
+          "command": "vs-codebench.deleteTodo",
+          "when": "view == todosView && (viewItem == todoItem || viewItem == todoItemMaxDepth)",
+          "group": "inline@3"
+        },
+        {
+          "command": "vs-codebench.moveTodoUp",
+          "when": "view == todosView && (viewItem == todoItem || viewItem == todoItemMaxDepth)",
+          "group": "navigation@1"
+        },
+        {
+          "command": "vs-codebench.moveTodoDown",
+          "when": "view == todosView && (viewItem == todoItem || viewItem == todoItemMaxDepth)",
+          "group": "navigation@2"
+        },
+        {
+          "command": "vs-codebench.addFolder",
+          "when": "view == bookmarksView && viewItem == bookmarkFolder",
+          "group": "inline@0"
+        },
+        {
+          "command": "vs-codebench.editFolder",
+          "when": "view == bookmarksView && (viewItem == bookmarkFolder || viewItem == bookmarkFolderMaxDepth)",
+          "group": "inline@1"
+        },
+        {
+          "command": "vs-codebench.deleteFolder",
+          "when": "view == bookmarksView && (viewItem == bookmarkFolder || viewItem == bookmarkFolderMaxDepth)",
+          "group": "inline@3"
+        },
+        {
+          "command": "vs-codebench.changeBookmarkColor",
+          "when": "view == bookmarksView && (viewItem == bookmarkItem)",
+          "group": "inline@1"
+        },
+        {
+          "command": "vs-codebench.editBookmark",
+          "when": "view == bookmarksView && (viewItem == bookmarkItem)",
+          "group": "inline@2"
+        },
+        {
+          "command": "vs-codebench.deleteBookmark",
+          "when": "view == bookmarksView && (viewItem == bookmarkItem || viewItem == bookmarkItemMissing)",
+          "group": "inline@3"
+        },
+        {
+          "command": "vs-codebench.renameScratchFile",
+          "when": "view == scratchpadsView && viewItem == scratchpadItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "vs-codebench.deleteScratchFile",
+          "when": "view == scratchpadsView && viewItem == scratchpadItem",
+          "group": "inline@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "vs-codebench.toggleBookmark",
+          "group": "navigation",
+          "when": "resourceScheme == 'file'"
+        },
+        {
+          "command": "vs-codebench.changeBookmarkColor",
+          "group": "navigation@2",
+          "when": "resourceScheme == 'file' && codebench.lineHasBookmark"
+        }
+      ],
+      "editor/lineNumber/context": [
+        {
+          "command": "vs-codebench.toggleBookmark",
+          "group": "navigation",
+          "when": "resourceScheme == 'file'"
+        },
+        {
+          "command": "vs-codebench.changeBookmarkColor",
+          "group": "navigation@2",
+          "when": "resourceScheme == 'file' && codebench.lineHasBookmark"
+        }
+      ],
+      "editor/glyphMargin/context": [
+        {
+          "command": "vs-codebench.toggleBookmark",
+          "group": "navigation@0",
+          "when": "resourceScheme == 'file'"
+        },
+        {
+          "command": "vs-codebench.changeBookmarkColor",
+          "group": "navigation@1",
+          "when": "resourceScheme == 'file'"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "vs-codebench.editTodo",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.deleteTodo",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.addSubTodo",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.moveTodoUp",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.moveTodoDown",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.toggleTodo",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.editBookmark",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.deleteBookmark",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.addBookmark",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.addFolder",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.editFolder",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.deleteFolder",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.openScratchFile",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.renameScratchFile",
+          "when": "false"
+        },
+        {
+          "command": "vs-codebench.deleteScratchFile",
+          "when": "false"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/uuid": "^10.0.0",
+    "@types/vscode": "^1.101.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.25.3",
+    "esbuild-plugin-alias": "^0.2.1",
+    "eslint": "^9.25.1",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "uuid": "^11.1.0"
+  }
+}

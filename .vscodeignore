@@ -1,0 +1,42 @@
+# Development environment files
+.vscode/**
+.vscode-test/**
+node_modules/**
+.yarnrc
+
+# Source files (TypeScript gets compiled to out/)
+src/**
+**/*.ts
+**/tsconfig.json
+**/*.map
+
+# Build and development tools
+esbuild.js
+.gitignore
+**/eslint.config.mjs
+**/.vscode-test.*
+.github/**
+
+# Documentation that's not needed in the package
+vsc-extension-quickstart.md
+docs/**
+
+# Test files
+test/**
+**/*.test.*
+out/test/**
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Development dependencies are automatically excluded
+# Keep only compiled output and essential files:
+# - out/extension.js (main entry point)
+# - package.json (manifest)
+# - README.md (marketplace description)
+# - CHANGELOG.md (release notes)
+# - LICENSE (legal info)
+# - icon.png (extension icon)
+# - media/** (required assets)
+!out/extension.js

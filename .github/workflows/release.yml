@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish-marketplace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install packaging tools
+        run: npm install -g @vscode/vsce
+
+      - name: Package extension (.vsix)
+        run: vsce package
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT is not set. Please add it in GitHub Secrets." 1>&2
+            exit 1
+          fi
+          vsce publish --packagePath *.vsix
+
+      - name: Create GitHub Release and upload .vsix
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.vsix"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # publish-open-vsx:
+  #   if: ${{ secrets.OVSX_TOKEN != '' }}
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '22.x'
+  #         cache: 'npm'
+
+  #     - name: Install dependencies
+  #       run: npm ci
+
+  #     - name: Install packaging tools
+  #       run: |
+  #         npm install -g @vscode/vsce
+  #         npm install -g ovsx
+
+  #     - name: Verify tag matches package.json version
+  #       run: |
+  #         VERSION_TAG="${GITHUB_REF_NAME#v}"
+  #         PKG_VERSION=$(node -p "require('./package.json').version")
+  #         if [ "$PKG_VERSION" != "$VERSION_TAG" ]; then
+  #           echo "Package version ($PKG_VERSION) does not match tag ($VERSION_TAG)" 1>&2
+  #           exit 1
+  #         fi
+
+  #     - name: Package extension (.vsix)
+  #       run: vsce package
+
+  #     - name: Publish to Open VSX
+  #       env:
+  #         OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+  #       run: |
+  #         if [ -z "$OVSX_TOKEN" ]; then
+  #           echo "OVSX_TOKEN not set, skipping Open VSX publish."; exit 0; fi
+  #         ovsx publish --packagePath *.vsix --pat "$OVSX_TOKEN"
