@@ -3,8 +3,6 @@
 [![CI](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml)
 [![Release](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml/badge.svg)](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml)
 [![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/nazariitaran.vs-codebench?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/nazariitaran.vs-codebench)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/nazariitaran.vs-codebench)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- [![Open VSX](https://img.shields.io/open-vsx/v/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench)
 [![Open VSX Downloads](https://img.shields.io/open-vsx/dt/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench) -->
