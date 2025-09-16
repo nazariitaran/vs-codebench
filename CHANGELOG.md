@@ -1,3 +1,9 @@
+# 1.0.1 - September 2025
+
+- Increased max allowed length for bookmark folder names from 20 to 50 characters.
+
+---
+
 # 1.0.0 - August 2025
 
 Initial release! 🥳

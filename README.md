@@ -74,6 +74,10 @@ You can change these in File > Preferences > Keyboard Shortcuts.
 - VS Code 1.101.0 or newer
 
 ## Release Notes
+
+### 1.0.1
+- Increased max allowed length for bookmark folder names from 20 to 50 characters.
+
 ### 1.0.0 (Initial)
 - Comprehensive bookmark management with intuitive UI;
 - Customizable bookmark colors;
