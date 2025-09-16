@@ -14,8 +14,8 @@ class BookmarkValidator {
     if (!name || !name.trim()) {
       return 'Folder name cannot be empty';
     }
-    if (name.length > 20) {
-      return 'Folder name must be less than 20 characters';
+    if (name.length > 50) {
+      return 'Folder name must be less than 50 characters';
     }
     return null;
   }
