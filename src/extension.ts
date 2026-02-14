@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 
 import { TodosProvider, registerTodoCommands } from './features/todos';
-import { BookmarksProvider, registerBookmarkCommands } from './features/bookmarks';
-import { ScratchpadsProvider, registerScratchpadCommands } from './features/scratchpads';
+import { BookmarksProvider, registerBookmarkAiTools, registerBookmarkCommands } from './features/bookmarks';
+import { ScratchpadsProvider, registerScratchpadAiTools, registerScratchpadCommands } from './features/scratchpads';
 
 import { TodoDragAndDropController } from './features/todos/views/TodoDragAndDropController';
 import { BookmarkDragAndDropController } from './features/bookmarks/views/BookmarkDragAndDropController';
@@ -49,6 +49,8 @@ export function activate(context: vscode.ExtensionContext) {
   registerTodoCommands(context, todosProvider);
   registerBookmarkCommands(context, bookmarksProvider);
   registerScratchpadCommands(context, scratchpadsProvider);
+  registerBookmarkAiTools(context, bookmarksProvider);
+  registerScratchpadAiTools(context, scratchpadsProvider);
 
   return {
     todosProvider,

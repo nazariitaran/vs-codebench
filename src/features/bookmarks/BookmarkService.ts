@@ -44,7 +44,7 @@ export class BookmarkService {
     return this.folders;
   }
 
-  async addBookmark(fileUri: string, line: number, text: string): Promise<Bookmark> {
+  async addBookmark(fileUri: string, line: number, text: string, parentId?: string): Promise<Bookmark> {
     // Calculate order as max + 1 to ensure new bookmarks go to the end
     const siblings = this.getFolderSiblings(undefined);
     const maxOrder = siblings.length > 0 
@@ -56,6 +56,7 @@ export class BookmarkService {
       fileUri,
       line,
       text: text.trim(),
+      parentId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       order: maxOrder + 1
