@@ -40,6 +40,9 @@ Organise your bookmarks by folder or colour:
 Quick, persistent scratch files to capture ideas/snippets.
 ![VS CodeBench Overview](./docs/7_scratchpads.gif)
 
+### GitHub Copilot Tools
+Built-in tools for GitHub Copilot to read and manage CodeBench bookmarks and scratchpads directly in the current workspace.
+
 
 ## Default Keyboard Shortcuts
 - Add Todo: Ctrl+Alt+T (macOS: ⌘⌥T)
@@ -77,6 +80,11 @@ You can change these in File > Preferences > Keyboard Shortcuts.
 - VS Code 1.101.0 or newer
 
 ## Release Notes
+
+### 1.1.0
+- Added GitHub Copilot tools for bookmarks and scratchpads.
+- Added a command to save an untitled editor as a scratchpad.
+- Increased max text length limits for todos, bookmarks, and bookmark folder names from 50 to 75 characters.
 
 ### 1.0.1
 - Increased max allowed length for bookmark folder names from 20 to 50 characters.
