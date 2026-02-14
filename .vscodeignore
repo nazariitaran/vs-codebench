@@ -18,6 +18,7 @@ esbuild.js
 .github/**
 
 # Documentation that's not needed in the package
+AGENTS.md
 vsc-extension-quickstart.md
 docs/**
 
