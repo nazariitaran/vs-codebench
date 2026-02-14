@@ -156,6 +156,7 @@ export class ScratchpadService {
       }
     } catch (error) {
       console.error('Failed to rename file:', error);
+      throw error;
     }
 
     await this.saveMetadata();

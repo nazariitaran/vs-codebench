@@ -195,8 +195,8 @@ export class BookmarksProvider implements vscode.TreeDataProvider<TreeItem> {
     return item;
   }
 
-  async addBookmark(fileUri: string, line: number, text: string): Promise<void> {
-    await this.bookmarkService.addBookmark(fileUri, line, text);
+  async addBookmark(fileUri: string, line: number, text: string, parentId?: string): Promise<void> {
+    await this.bookmarkService.addBookmark(fileUri, line, text, parentId);
     this.refresh();
   }
 
@@ -257,6 +257,10 @@ export class BookmarksProvider implements vscode.TreeDataProvider<TreeItem> {
     return this.bookmarkService.getFolders();
   }
 
+  getFolderDepth(folderId: string): number {
+    return this.bookmarkService.getFolderDepth(folderId);
+  }
+
   getBookmarkById(id: string): Bookmark | undefined {
     return this.bookmarkService.getBookmarkById(id);
   }
@@ -280,6 +284,10 @@ export class BookmarksProvider implements vscode.TreeDataProvider<TreeItem> {
   }
 
   async deleteFolder(id: string): Promise<void> {
+    await this.deleteFolderWithConfirmation(id);
+  }
+
+  async deleteFolderForTools(id: string, force = true): Promise<void> {
     const folder = this.bookmarkService.findFolder(id);
     if (!folder) {
       return;
@@ -287,6 +295,21 @@ export class BookmarksProvider implements vscode.TreeDataProvider<TreeItem> {
 
     const itemCount = this.bookmarkService.countFolderItems(id);
 
+    if (!force && itemCount > 0) {
+      throw new Error('Folder is not empty. Set force=true to delete recursively.');
+    }
+
+    await this.bookmarkService.deleteFolder(id);
+    this.refresh();
+  }
+
+  private async deleteFolderWithConfirmation(id: string): Promise<void> {
+    const folder = this.bookmarkService.findFolder(id);
+    if (!folder) {
+      return;
+    }
+
+    const itemCount = this.bookmarkService.countFolderItems(id);
     if (itemCount > 0) {
       const result = await vscode.window.showWarningMessage(
         `Are you sure you want to delete "${folder.name}"? This will delete ${itemCount} item(s) including all subfolders and bookmarks.`,

@@ -1,6 +1,30 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { ScratchpadItem } from './views/ScratchpadItem';
 import { ScratchpadService } from './ScratchpadService';
+
+const LANGUAGE_TO_EXTENSION: Record<string, string> = {
+  javascript: '.js',
+  typescript: '.ts',
+  python: '.py',
+  java: '.java',
+  cpp: '.cpp',
+  csharp: '.cs',
+  go: '.go',
+  rust: '.rs',
+  html: '.html',
+  css: '.css',
+  json: '.json',
+  xml: '.xml',
+  markdown: '.md',
+  yaml: '.yaml',
+  shellscript: '.sh',
+  sql: '.sql',
+  ruby: '.rb',
+  php: '.php',
+  swift: '.swift',
+  plaintext: '.txt'
+};
 
 export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<ScratchpadItem | undefined | null | void> = new vscode.EventEmitter<ScratchpadItem | undefined | null | void>();
@@ -78,14 +102,103 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
       return;
     }
 
-    const fileNumber = this.scratchpadService.getNextFileNumber(selected.extension);
-    const fileName = `scratchpad_${fileNumber}${selected.extension}`;
-    const language = this.scratchpadService.getLanguageFromExtension(selected.extension);
+    await this.createScratchpadFromExtension(selected.extension);
+  }
 
+  getAllScratchpads() {
+    return this.scratchpadService.getScratchFiles();
+  }
+
+  getScratchpadById(id: string) {
+    return this.scratchpadService.getScratchFile(id);
+  }
+
+  getScratchpadContentForTools(id: string): string {
+    const scratchpad = this.scratchpadService.getScratchFile(id);
+    if (!scratchpad) {
+      throw new Error('Scratchpad not found.');
+    }
+
+    return this.scratchpadService.loadFileContent(id);
+  }
+
+  async createScratchpadForTools(params: { name?: string; language?: string; content?: string }): Promise<void> {
+    const extension = this.getExtensionForLanguage(params.language);
+    const content = params.content ?? '';
+
+    let fileName: string;
+    if (params.name && params.name.trim().length > 0) {
+      fileName = this.normalizeFileName(params.name.trim(), extension);
+      this.validateFileName(fileName);
+      const exists = this.scratchpadService.getScratchFiles().some(f => f.name === fileName);
+      if (exists) {
+        throw new Error('A scratchpad with this name already exists.');
+      }
+    } else {
+      const fileNumber = this.scratchpadService.getNextFileNumber(extension);
+      fileName = `scratchpad_${fileNumber}${extension}`;
+    }
+
+    const language = params.language || this.scratchpadService.getLanguageFromExtension(path.extname(fileName));
     const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
+    if (content.length > 0) {
+      await this.scratchpadService.updateFileContent(scratchFile.id, content);
+    }
     this.refresh();
+  }
 
-    await this.openScratchFile(scratchFile.id);
+  async renameScratchFileForTools(id: string, newName: string): Promise<void> {
+    const file = this.scratchpadService.getScratchFile(id);
+    if (!file) {
+      throw new Error('Scratchpad not found.');
+    }
+
+    const trimmed = (newName ?? '').trim();
+    if (trimmed.length === 0) {
+      throw new Error('File name cannot be empty.');
+    }
+
+    this.validateFileName(trimmed);
+
+    const providedExt = path.extname(trimmed);
+    const oldExt = path.extname(file.name);
+    const targetName = providedExt ? trimmed : `${trimmed}${oldExt}`;
+
+    const sameNameExists = this.scratchpadService
+      .getScratchFiles()
+      .some(f => f.id !== id && f.name === targetName);
+    if (sameNameExists) {
+      throw new Error('A scratchpad with this name already exists.');
+    }
+
+    await this.scratchpadService.renameScratchFile(id, trimmed);
+    this.refresh();
+  }
+
+  async deleteScratchFileForTools(id: string): Promise<void> {
+    await this.scratchpadService.deleteScratchFile(id);
+    this.refresh();
+  }
+
+  async saveActiveUnsavedEditorAsScratchpad(): Promise<void> {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+      vscode.window.showInformationMessage('Open an untitled editor to save it as a scratchpad.');
+      return;
+    }
+
+    const document = activeEditor.document;
+    if (document.uri.scheme !== 'untitled') {
+      vscode.window.showInformationMessage('This command works only for unsaved untitled editors.');
+      return;
+    }
+
+    const sourceUri = document.uri;
+    const extension = this.getExtensionForDocument(document);
+    const content = document.getText();
+
+    await this.closeUntitledEditor(sourceUri);
+    await this.createScratchpadFromExtension(extension, content);
   }
 
   async openScratchFile(id: string): Promise<void> {
@@ -198,6 +311,83 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
   private async loadScratchFiles(): Promise<void> {
     await this.scratchpadService.loadScratchFiles();
     this.refresh();
+  }
+
+  private async createScratchpadFromExtension(extension: string, content = ''): Promise<void> {
+    const fileNumber = this.scratchpadService.getNextFileNumber(extension);
+    const fileName = `scratchpad_${fileNumber}${extension}`;
+    const language = this.scratchpadService.getLanguageFromExtension(extension);
+
+    const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
+    if (content.length > 0) {
+      await this.scratchpadService.updateFileContent(scratchFile.id, content);
+    }
+
+    this.refresh();
+    await this.openScratchFile(scratchFile.id);
+  }
+
+  private getExtensionForLanguage(language?: string): string {
+    if (!language) {
+      return '.txt';
+    }
+    const normalized = language.toLowerCase();
+    const entry = Object.entries(LANGUAGE_TO_EXTENSION)
+      .find(([lang]) => lang.toLowerCase() === normalized);
+    return entry?.[1] ?? '.txt';
+  }
+
+  private normalizeFileName(fileName: string, extension: string): string {
+    if (path.extname(fileName)) {
+      return fileName;
+    }
+    return `${fileName}${extension}`;
+  }
+
+  private validateFileName(fileName: string): void {
+    if (!/^[a-zA-Z0-9_\-. ]+$/.test(fileName)) {
+      throw new Error('File name contains invalid characters.');
+    }
+  }
+
+  private getExtensionForDocument(document: vscode.TextDocument): string {
+    const fileNameExtension = path.extname(document.fileName || '').toLowerCase();
+    if (fileNameExtension) {
+      return fileNameExtension;
+    }
+
+    const mappedExtension = LANGUAGE_TO_EXTENSION[document.languageId];
+    return mappedExtension || '.txt';
+  }
+
+  private async closeUntitledEditor(uri: vscode.Uri): Promise<void> {
+    const target = uri.toString();
+
+    const tab = vscode.window.tabGroups.all
+      .flatMap(group => group.tabs)
+      .find((candidateTab) => {
+        const input = candidateTab.input as { uri?: vscode.Uri };
+        return input.uri?.toString() === target;
+      });
+
+    if (tab) {
+      await vscode.window.tabGroups.close(tab, true);
+      return;
+    }
+
+    const matchingEditor = vscode.window.visibleTextEditors
+      .find(editor => editor.document.uri.toString() === target);
+
+    if (!matchingEditor) {
+      return;
+    }
+
+    await vscode.window.showTextDocument(matchingEditor.document, { preview: true, preserveFocus: false });
+    try {
+      await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    } catch {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+    }
   }
 
   private async onDocumentChange(event: vscode.TextDocumentChangeEvent): Promise<void> {

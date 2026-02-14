@@ -1,3 +1,11 @@
+# 1.1.0 - February 2026
+
+- Added GitHub Copilot tools for bookmarks and scratchpads.
+- Added a command to save an untitled editor as a scratchpad.
+- Increased max text length limits for todos, bookmarks, and bookmark folder names from 50 to 75 characters.
+
+---
+
 # 1.0.1 - September 2025
 
 - Increased max allowed length for bookmark folder names from 20 to 50 characters.

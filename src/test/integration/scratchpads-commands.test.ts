@@ -61,5 +61,62 @@ suite('Scratchpads: command-driven flows', () => {
     files = scratchpadsProvider.scratchpadService.getScratchFiles();
     assert.ok(!files.find((f: any) => f.id === renamed.id), 'Scratchpad should be deleted');
   });
+
+  test('Saves active untitled markdown editor as scratchpad with .md extension', async function () {
+    this.timeout(20000);
+    const { scratchpadsProvider } = extension.exports as any;
+    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
+
+    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
+    }
+
+    const content = '# quick note\n\nconsole.log(1);';
+    const untitledDoc = await vscode.workspace.openTextDocument({
+      language: 'markdown',
+      content
+    });
+    await vscode.window.showTextDocument(untitledDoc, { preview: false, preserveFocus: false });
+
+    await vscode.commands.executeCommand('vs-codebench.saveUnsavedAsScratchpad');
+
+    const files = scratchpadsProvider.scratchpadService.getScratchFiles();
+    assert.strictEqual(files.length, 1, 'One scratchpad should be created');
+    assert.strictEqual(files[0].name.endsWith('.md'), true, 'Scratchpad should use .md extension');
+    assert.strictEqual(files[0].name.startsWith('scratchpad_'), true, 'Scratchpad should keep naming convention');
+    assert.strictEqual(files[0].content, content, 'Scratchpad should preserve untitled editor content');
+
+    const hasUntitledTab = vscode.window.tabGroups.all
+      .flatMap(group => group.tabs)
+      .some(tab => {
+        const input = tab.input as { uri?: vscode.Uri };
+        return input.uri?.toString() === untitledDoc.uri.toString();
+      });
+    assert.strictEqual(hasUntitledTab, false, 'Untitled source editor should be closed after save');
+  });
+
+  test('Falls back to .txt when language has no mapping', async function () {
+    this.timeout(20000);
+    const { scratchpadsProvider } = extension.exports as any;
+    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
+
+    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
+    }
+
+    const content = 'temp data';
+    const untitledDoc = await vscode.workspace.openTextDocument({
+      language: 'mermaid',
+      content
+    });
+    await vscode.window.showTextDocument(untitledDoc, { preview: false, preserveFocus: false });
+
+    await vscode.commands.executeCommand('vs-codebench.saveUnsavedAsScratchpad');
+
+    const files = scratchpadsProvider.scratchpadService.getScratchFiles();
+    assert.strictEqual(files.length, 1, 'One scratchpad should be created');
+    assert.strictEqual(files[0].name.endsWith('.txt'), true, 'Unknown language should fall back to .txt');
+    assert.strictEqual(files[0].content, content, 'Scratchpad should preserve untitled editor content');
+  });
 });
 

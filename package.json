@@ -2,7 +2,7 @@
   "name": "vs-codebench",
   "displayName": "VS CodeBench",
   "description": "A productivity extension that helps you organize your tasks, code notes, and bookmarks efficiently.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publisher": "nazariitaran",
   "icon": "icon.png",
   "engines": {
@@ -165,6 +165,12 @@
         "category": "CodeBench"
       },
       {
+        "command": "vs-codebench.saveUnsavedAsScratchpad",
+        "title": "Save Unsaved File as Scratchpad",
+        "icon": "$(notebook-state-success)",
+        "category": "CodeBench"
+      },
+      {
         "command": "vs-codebench.openScratchFile",
         "title": "Open Scratchpad File",
         "icon": "$(file)",
@@ -186,6 +192,306 @@
         "command": "vs-codebench.clearAllScratchpads",
         "title": "Scratchpads: Clear All",
         "category": "CodeBench"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "codebench_get_bookmarks",
+        "displayName": "Get Bookmarks",
+        "userDescription": "Read bookmarks and bookmark folders from VS CodeBench.",
+        "modelDescription": "Get VS CodeBench bookmarks and folders in the current workspace. Use this before bookmark mutations when you need bookmarkId or folderId values.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-bookmarks",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "fileUri": {
+              "type": "string",
+              "description": "Absolute file path or file:// URI. Optional filter to return bookmarks only for one file."
+            },
+            "folderId": {
+              "type": "string",
+              "description": "Optional folder ID to filter bookmarks by parent folder."
+            },
+            "includeFolders": {
+              "type": "boolean",
+              "description": "When true, include folder entries in the response."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_add_bookmark",
+        "displayName": "Add Bookmark",
+        "userDescription": "Create a bookmark in VS CodeBench.",
+        "modelDescription": "Create a bookmark for a file and line in VS CodeBench. Line is zero-based. Use this for root-level bookmarks.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-add-bookmark",
+        "inputSchema": {
+          "type": "object",
+          "required": ["fileUri", "line"],
+          "properties": {
+            "fileUri": {
+              "type": "string",
+              "description": "Absolute file path or file:// URI for the target file."
+            },
+            "line": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Zero-based target line number."
+            },
+            "text": {
+              "type": "string",
+              "description": "Optional bookmark label (1-75 characters)."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_move_bookmark_to_folder",
+        "displayName": "Move Bookmark To Folder",
+        "userDescription": "Move an existing bookmark into a bookmark folder.",
+        "modelDescription": "Place an existing VS CodeBench bookmark into a specific folder. Use get_bookmarks first to resolve bookmarkId and folderId.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-move-bookmark-folder",
+        "inputSchema": {
+          "type": "object",
+          "required": ["bookmarkId", "folderId"],
+          "properties": {
+            "bookmarkId": {
+              "type": "string",
+              "description": "Existing bookmark ID to move into a folder."
+            },
+            "folderId": {
+              "type": "string",
+              "description": "Target bookmark folder ID."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_rename_bookmark",
+        "displayName": "Rename Bookmark",
+        "userDescription": "Rename an existing bookmark.",
+        "modelDescription": "Update the text label for a VS CodeBench bookmark by bookmarkId.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-rename-bookmark",
+        "inputSchema": {
+          "type": "object",
+          "required": ["bookmarkId", "text"],
+          "properties": {
+            "bookmarkId": {
+              "type": "string",
+              "description": "ID of bookmark to rename."
+            },
+            "text": {
+              "type": "string",
+              "description": "New bookmark label (1-75 characters)."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_set_bookmark_color",
+        "displayName": "Set Bookmark Color",
+        "userDescription": "Set bookmark color in VS CodeBench.",
+        "modelDescription": "Set bookmark color by bookmarkId. Allowed values are default, red, green, yellow, and purple.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-bookmark-color",
+        "inputSchema": {
+          "type": "object",
+          "required": ["bookmarkId", "color"],
+          "properties": {
+            "bookmarkId": {
+              "type": "string",
+              "description": "ID of bookmark to recolor."
+            },
+            "color": {
+              "type": "string",
+              "enum": ["default", "red", "green", "yellow", "purple"],
+              "description": "Bookmark color name."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_remove_bookmark",
+        "displayName": "Remove Bookmark",
+        "userDescription": "Delete a bookmark from VS CodeBench.",
+        "modelDescription": "Delete a VS CodeBench bookmark by bookmarkId.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-remove-bookmark",
+        "inputSchema": {
+          "type": "object",
+          "required": ["bookmarkId"],
+          "properties": {
+            "bookmarkId": {
+              "type": "string",
+              "description": "ID of bookmark to delete."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_create_bookmark_folder",
+        "displayName": "Create Bookmark Folder",
+        "userDescription": "Create a bookmark folder in VS CodeBench.",
+        "modelDescription": "Create a bookmark folder at root or under a parent folder. Folder depth limit is 3.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-create-folder",
+        "inputSchema": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Folder name (1-75 characters)."
+            },
+            "parentFolderId": {
+              "type": "string",
+              "description": "Optional parent folder ID."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_remove_bookmark_folder",
+        "displayName": "Remove Bookmark Folder",
+        "userDescription": "Delete a bookmark folder and its contents.",
+        "modelDescription": "Delete a bookmark folder by folderId. By default this recursively removes all nested subfolders and bookmarks.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-remove-folder",
+        "inputSchema": {
+          "type": "object",
+          "required": ["folderId"],
+          "properties": {
+            "folderId": {
+              "type": "string",
+              "description": "ID of folder to delete."
+            },
+            "force": {
+              "type": "boolean",
+              "description": "When false, deletion requires empty folder; when true, delete recursively."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_get_scratchpads",
+        "displayName": "Get Scratchpads",
+        "userDescription": "Read scratchpads from VS CodeBench.",
+        "modelDescription": "List scratchpad metadata for the current workspace, optionally filtered by language or name substring. This tool does not return scratchpad content.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-scratchpads",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string",
+              "description": "Optional language filter, for example markdown or typescript."
+            },
+            "nameContains": {
+              "type": "string",
+              "description": "Optional case-insensitive substring for scratchpad name filtering."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_get_scratchpad_content",
+        "displayName": "Get Scratchpad Content",
+        "userDescription": "Read content for one scratchpad by ID.",
+        "modelDescription": "Get the full content of a specific VS CodeBench scratchpad by scratchpadId. Use get_scratchpads first to discover valid IDs.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-scratchpad-content",
+        "inputSchema": {
+          "type": "object",
+          "required": ["scratchpadId"],
+          "properties": {
+            "scratchpadId": {
+              "type": "string",
+              "description": "ID of scratchpad whose content should be returned."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_create_scratchpad",
+        "displayName": "Create Scratchpad",
+        "userDescription": "Create a scratchpad in VS CodeBench.",
+        "modelDescription": "Create a scratchpad with optional name, language, and content. If name is omitted, a default scratchpad_<n>.<ext> name is generated.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-create-scratchpad",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Optional file name. If extension is omitted, one is added from language or .txt."
+            },
+            "language": {
+              "type": "string",
+              "description": "Optional language id, for example markdown or typescript."
+            },
+            "content": {
+              "type": "string",
+              "description": "Optional initial file content."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_rename_scratchpad",
+        "displayName": "Rename Scratchpad",
+        "userDescription": "Rename a scratchpad file.",
+        "modelDescription": "Rename a VS CodeBench scratchpad by scratchpadId.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-rename-scratchpad",
+        "inputSchema": {
+          "type": "object",
+          "required": ["scratchpadId", "newName"],
+          "properties": {
+            "scratchpadId": {
+              "type": "string",
+              "description": "ID of scratchpad to rename."
+            },
+            "newName": {
+              "type": "string",
+              "description": "New file name for the scratchpad."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_delete_scratchpad",
+        "displayName": "Delete Scratchpad",
+        "userDescription": "Delete a scratchpad file.",
+        "modelDescription": "Delete a VS CodeBench scratchpad by scratchpadId.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-delete-scratchpad",
+        "inputSchema": {
+          "type": "object",
+          "required": ["scratchpadId"],
+          "properties": {
+            "scratchpadId": {
+              "type": "string",
+              "description": "ID of scratchpad to delete."
+            }
+          },
+          "additionalProperties": false
+        }
       }
     ],
     "viewsContainers": {
@@ -338,6 +644,11 @@
         }
       ],
       "editor/context": [
+        {
+          "command": "vs-codebench.saveUnsavedAsScratchpad",
+          "group": "navigation@0",
+          "when": "resourceScheme == 'untitled'"
+        },
         {
           "command": "vs-codebench.toggleBookmark",
           "group": "navigation",
