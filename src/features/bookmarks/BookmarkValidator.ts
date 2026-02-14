@@ -4,8 +4,8 @@ class BookmarkValidator {
   static validateText(text: string): string | null {
     const trimmedText = text.trim();
     const length = Array.from(trimmedText).length;
-    if (length < 1 || length > 50) {
-      return "Text must be between 1 and 50 characters.";
+    if (length < 1 || length > 75) {
+      return "Text must be between 1 and 75 characters.";
     }
     return null;
   }
@@ -14,8 +14,8 @@ class BookmarkValidator {
     if (!name || !name.trim()) {
       return 'Folder name cannot be empty';
     }
-    if (name.length > 50) {
-      return 'Folder name must be less than 50 characters';
+    if (name.length > 75) {
+      return 'Folder name must be less than 75 characters';
     }
     return null;
   }

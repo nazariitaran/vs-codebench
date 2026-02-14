@@ -66,8 +66,10 @@ You can change these in File > Preferences > Keyboard Shortcuts.
 - Todos
   - Max items: 100 total
   - Nesting: up to 2 levels deep (parent -> child -> grandchild). Deeper nesting is blocked
-  - Text length: 1–50 characters per todo
+  - Text length: 1–75 characters per todo
 - Bookmarks
+  - Text length: 1–75 characters per bookmark label
+  - Folder name length: 1–75 characters
   - Folder depth: up to 3 levels deep (moving/creating beyond this is blocked)
   - Count: up to 200 bookmarks (hard limit); attempts beyond this are blocked
 

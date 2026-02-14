@@ -243,7 +243,7 @@
             },
             "text": {
               "type": "string",
-              "description": "Optional bookmark label (1-50 characters)."
+              "description": "Optional bookmark label (1-75 characters)."
             }
           },
           "additionalProperties": false
@@ -289,7 +289,7 @@
             },
             "text": {
               "type": "string",
-              "description": "New bookmark label (1-50 characters)."
+              "description": "New bookmark label (1-75 characters)."
             }
           },
           "additionalProperties": false
@@ -351,7 +351,7 @@
           "properties": {
             "name": {
               "type": "string",
-              "description": "Folder name (1-50 characters)."
+              "description": "Folder name (1-75 characters)."
             },
             "parentFolderId": {
               "type": "string",
