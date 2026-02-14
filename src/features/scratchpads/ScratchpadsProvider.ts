@@ -1,6 +1,30 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { ScratchpadItem } from './views/ScratchpadItem';
 import { ScratchpadService } from './ScratchpadService';
+
+const LANGUAGE_TO_EXTENSION: Record<string, string> = {
+  javascript: '.js',
+  typescript: '.ts',
+  python: '.py',
+  java: '.java',
+  cpp: '.cpp',
+  csharp: '.cs',
+  go: '.go',
+  rust: '.rs',
+  html: '.html',
+  css: '.css',
+  json: '.json',
+  xml: '.xml',
+  markdown: '.md',
+  yaml: '.yaml',
+  shellscript: '.sh',
+  sql: '.sql',
+  ruby: '.rb',
+  php: '.php',
+  swift: '.swift',
+  plaintext: '.txt'
+};
 
 export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadItem> {
   private _onDidChangeTreeData: vscode.EventEmitter<ScratchpadItem | undefined | null | void> = new vscode.EventEmitter<ScratchpadItem | undefined | null | void>();
@@ -78,14 +102,28 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
       return;
     }
 
-    const fileNumber = this.scratchpadService.getNextFileNumber(selected.extension);
-    const fileName = `scratchpad_${fileNumber}${selected.extension}`;
-    const language = this.scratchpadService.getLanguageFromExtension(selected.extension);
+    await this.createScratchpadFromExtension(selected.extension);
+  }
 
-    const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
-    this.refresh();
+  async saveActiveUnsavedEditorAsScratchpad(): Promise<void> {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (!activeEditor) {
+      vscode.window.showInformationMessage('Open an untitled editor to save it as a scratchpad.');
+      return;
+    }
 
-    await this.openScratchFile(scratchFile.id);
+    const document = activeEditor.document;
+    if (document.uri.scheme !== 'untitled') {
+      vscode.window.showInformationMessage('This command works only for unsaved untitled editors.');
+      return;
+    }
+
+    const sourceUri = document.uri;
+    const extension = this.getExtensionForDocument(document);
+    const content = document.getText();
+
+    await this.closeUntitledEditor(sourceUri);
+    await this.createScratchpadFromExtension(extension, content);
   }
 
   async openScratchFile(id: string): Promise<void> {
@@ -198,6 +236,60 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
   private async loadScratchFiles(): Promise<void> {
     await this.scratchpadService.loadScratchFiles();
     this.refresh();
+  }
+
+  private async createScratchpadFromExtension(extension: string, content = ''): Promise<void> {
+    const fileNumber = this.scratchpadService.getNextFileNumber(extension);
+    const fileName = `scratchpad_${fileNumber}${extension}`;
+    const language = this.scratchpadService.getLanguageFromExtension(extension);
+
+    const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
+    if (content.length > 0) {
+      await this.scratchpadService.updateFileContent(scratchFile.id, content);
+    }
+
+    this.refresh();
+    await this.openScratchFile(scratchFile.id);
+  }
+
+  private getExtensionForDocument(document: vscode.TextDocument): string {
+    const fileNameExtension = path.extname(document.fileName || '').toLowerCase();
+    if (fileNameExtension) {
+      return fileNameExtension;
+    }
+
+    const mappedExtension = LANGUAGE_TO_EXTENSION[document.languageId];
+    return mappedExtension || '.txt';
+  }
+
+  private async closeUntitledEditor(uri: vscode.Uri): Promise<void> {
+    const target = uri.toString();
+
+    const tab = vscode.window.tabGroups.all
+      .flatMap(group => group.tabs)
+      .find((candidateTab) => {
+        const input = candidateTab.input as { uri?: vscode.Uri };
+        return input.uri?.toString() === target;
+      });
+
+    if (tab) {
+      await vscode.window.tabGroups.close(tab, true);
+      return;
+    }
+
+    const matchingEditor = vscode.window.visibleTextEditors
+      .find(editor => editor.document.uri.toString() === target);
+
+    if (!matchingEditor) {
+      return;
+    }
+
+    await vscode.window.showTextDocument(matchingEditor.document, { preview: true, preserveFocus: false });
+    try {
+      await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    } catch {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+    }
   }
 
   private async onDocumentChange(event: vscode.TextDocumentChangeEvent): Promise<void> {

@@ -55,6 +55,7 @@ You can change these in File > Preferences > Keyboard Shortcuts.
 - CodeBench: Toggle Bookmark
 - CodeBench: Change Bookmark Color
 - CodeBench: Create Scratchpad
+- CodeBench: Save Unsaved File as Scratchpad
 
 ## Views
 - Todos: hierarchical task list with completion counts and a statistics panel

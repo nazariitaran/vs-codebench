@@ -165,6 +165,12 @@
         "category": "CodeBench"
       },
       {
+        "command": "vs-codebench.saveUnsavedAsScratchpad",
+        "title": "Save Unsaved File as Scratchpad",
+        "icon": "$(notebook-state-success)",
+        "category": "CodeBench"
+      },
+      {
         "command": "vs-codebench.openScratchFile",
         "title": "Open Scratchpad File",
         "icon": "$(file)",
@@ -338,6 +344,11 @@
         }
       ],
       "editor/context": [
+        {
+          "command": "vs-codebench.saveUnsavedAsScratchpad",
+          "group": "navigation@0",
+          "when": "resourceScheme == 'untitled'"
+        },
         {
           "command": "vs-codebench.toggleBookmark",
           "group": "navigation",
