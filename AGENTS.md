@@ -1,7 +1,7 @@
 # AGENTS.md — VS CodeBench
 
 ## Project Overview
-VS CodeBench is a VS Code extension (TypeScript) that provides three productivity features in a single sidebar panel: hierarchical **Todos**, line-level **Bookmarks** (with color & folders), and persistent **Scratchpads**. All data is scoped to the active workspace via VS Code's `Memento` storage API.
+VS CodeBench is a VS Code extension (TypeScript) that provides three productivity features in a single sidebar panel: hierarchical **Todos**, line-level **Bookmarks** (with color & folders), and persistent **Scratchpads**. It also exposes GitHub Copilot language model tools for bookmark and scratchpad operations. All data is scoped to the active workspace via VS Code's `Memento` storage API.
 
 - **Publisher:** `nazariitaran`
 - **Extension ID:** `nazariitaran.vs-codebench`
@@ -42,6 +42,7 @@ src/
 │   │       └── TodoProgressPanel.ts   # Webview stats panel
 │   ├── bookmarks/
 │   │   ├── Models.ts             # Bookmark, BookmarkFolder, color types/constants
+│   │   ├── BookmarkAiTools.ts    # GitHub Copilot language model tools (bookmark CRUD/folders/colors)
 │   │   ├── BookmarkService.ts    # CRUD, folder management, persistence
 │   │   ├── BookmarkValidator.ts  # Validation (text, folder name, count limits)
 │   │   ├── BookmarkCommands.ts
@@ -54,6 +55,7 @@ src/
 │   │       └── BookmarkDragAndDropController.ts
 │   └── scratchpads/
 │       ├── Models.ts             # ScratchFile, ScratchpadData interfaces
+│       ├── ScratchpadAiTools.ts  # GitHub Copilot language model tools (scratchpad list/read/create/rename/delete)
 │       ├── ScratchpadService.ts
 │       ├── ScratchpadCommands.ts
 │       ├── ScratchpadsProvider.ts
@@ -86,9 +88,15 @@ Each feature (`todos`, `bookmarks`, `scratchpads`) follows the same layered stru
 - Each service creates its own namespaced storage: `createNamespacedStorage(context, 'todos')`
 
 ### Extension Lifecycle
-- `activate()` creates three Providers, three TreeViews with DnD controllers, and registers all commands
+- `activate()` creates three Providers, three TreeViews with DnD controllers, registers all feature commands, and registers GitHub Copilot tools for bookmarks/scratchpads
 - `activate()` returns `{ todosProvider, bookmarksProvider, scratchpadsProvider }` for test access
 - All disposables go into `context.subscriptions`
+
+### GitHub Copilot Tools
+- Tools are contributed via `package.json` → `contributes.languageModelTools` and registered with `vscode.lm.registerTool(...)`.
+- Bookmark tools (8): `codebench_get_bookmarks`, `codebench_add_bookmark`, `codebench_move_bookmark_to_folder`, `codebench_rename_bookmark`, `codebench_set_bookmark_color`, `codebench_remove_bookmark`, `codebench_create_bookmark_folder`, `codebench_remove_bookmark_folder`.
+- Scratchpad tools (5): `codebench_get_scratchpads`, `codebench_get_scratchpad_content`, `codebench_create_scratchpad`, `codebench_rename_scratchpad`, `codebench_delete_scratchpad`.
+- Tool outputs are JSON text payloads wrapped in `LanguageModelToolResult`.
 
 ## Build & Development Commands
 ```sh
@@ -135,8 +143,8 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 - **IDs** are generated with `uuid` v4
 
 ## Business Rules & Limits
-- Todos: max 100 total items, max 2 levels of nesting (parent → child → grandchild), text 1–50 chars
-- Bookmarks: max 200 items, folder depth up to 3 levels, folder name 1–50 chars
+- Todos: max 100 total items, max 2 levels of nesting (parent → child → grandchild), text 1–75 chars
+- Bookmarks: max 200 items, folder depth up to 3 levels, bookmark text 1–75 chars, folder name 1–75 chars
 - Bookmark colors: `default` (blue), `red`, `green`, `yellow`, `purple`
 - All commands are prefixed with `vs-codebench.`
 
@@ -157,3 +165,5 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 - The extension activates on `onStartupFinished` — it is always active once VS Code loads.
 - All command IDs are defined in `package.json` under `contributes.commands` — keep them in sync with `{Feature}Commands.ts`.
 - When adding new commands, also update `contributes.menus` in `package.json` for proper visibility in tree views and context menus.
+- `vs-codebench.saveUnsavedAsScratchpad` is available only for `resourceScheme == 'untitled'` in the editor context menu.
+- When adding/changing Copilot tools, keep `contributes.languageModelTools` in sync with `BookmarkAiTools.ts` and `ScratchpadAiTools.ts`.
