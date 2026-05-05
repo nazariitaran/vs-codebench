@@ -37,7 +37,7 @@ Organise your bookmarks by folder or colour:
 ![VS CodeBench Overview](./docs/6_bookmark_organize.gif)
 
 ### Scratchpads
-Quick, persistent scratch files to capture ideas/snippets.
+Quick, persistent scratch files to capture ideas/snippets, organized into hierarchical folders.
 ![VS CodeBench Overview](./docs/7_scratchpads.gif)
 
 ### GitHub Copilot Tools
@@ -75,11 +75,22 @@ You can change these in File > Preferences > Keyboard Shortcuts.
   - Folder name length: 1–75 characters
   - Folder depth: up to 3 levels deep (moving/creating beyond this is blocked)
   - Count: up to 200 bookmarks (hard limit); attempts beyond this are blocked
+- Scratchpads
+  - File name length: 1–75 characters
+  - Folder name length: 1–75 characters
+  - Folder depth: up to 5 levels deep (moving/creating beyond this is blocked)
+  - Count: up to 200 scratchpad files (hard limit); attempts beyond this are blocked
 
 ## Requirements
 - VS Code 1.101.0 or newer
 
 ## Release Notes
+
+### 1.2.0
+- Added hierarchical folder support for scratchpads (up to 5 levels deep).
+- Added scratchpad folder commands: New Scratchpad Folder, Add Subfolder, Edit Folder, Delete Folder.
+- Added drag-and-drop support for moving scratchpad files and folders between levels.
+- Extended GitHub Copilot tools for scratchpads: UpdateScratchpadContent, CreateScratchpadFolder, MoveScratchpadToFolder, DeleteScratchpadFolder (9 tools total).
 
 ### 1.1.0
 - Added GitHub Copilot tools for bookmarks and scratchpads.
