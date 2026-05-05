@@ -44,8 +44,12 @@ suite('AI tools registration', () => {
       'codebench_get_scratchpads',
       'codebench_get_scratchpad_content',
       'codebench_create_scratchpad',
+      'codebench_update_scratchpad_content',
       'codebench_rename_scratchpad',
-      'codebench_delete_scratchpad'
+      'codebench_delete_scratchpad',
+      'codebench_create_scratchpad_folder',
+      'codebench_move_scratchpad_to_folder',
+      'codebench_delete_scratchpad_folder'
     ];
 
     const registeredToolNames = new Set(vscode.lm.tools.map(tool => tool.name));

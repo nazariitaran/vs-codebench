@@ -3,6 +3,8 @@ import * as path from 'path';
 import { ScratchFile } from '../Models';
 
 export class ScratchpadItem extends vscode.TreeItem {
+  public parentId?: string;
+
   constructor(
     public readonly scratchFile: ScratchFile
   ) {

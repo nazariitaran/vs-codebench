@@ -1,7 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { ScratchpadItem } from './views/ScratchpadItem';
+import { ScratchpadFolderTreeItem } from './views/ScratchpadFolderTreeItem';
 import { ScratchpadService } from './ScratchpadService';
+import { ScratchpadFolder } from './Models';
+import ScratchpadValidator from './ScratchpadValidator';
 
 const LANGUAGE_TO_EXTENSION: Record<string, string> = {
   javascript: '.js',
@@ -26,9 +29,11 @@ const LANGUAGE_TO_EXTENSION: Record<string, string> = {
   plaintext: '.txt'
 };
 
-export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadItem> {
-  private _onDidChangeTreeData: vscode.EventEmitter<ScratchpadItem | undefined | null | void> = new vscode.EventEmitter<ScratchpadItem | undefined | null | void>();
-  readonly onDidChangeTreeData: vscode.Event<ScratchpadItem | undefined | null | void> = this._onDidChangeTreeData.event;
+type TreeItem = ScratchpadItem | ScratchpadFolderTreeItem;
+
+export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
+  private _onDidChangeTreeData: vscode.EventEmitter<TreeItem | undefined | null | void> = new vscode.EventEmitter<TreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
   public scratchpadService: ScratchpadService;
   private openDocuments: Map<string, vscode.TextDocument> = new Map();
@@ -45,19 +50,80 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
     );
   }
 
-  getTreeItem(element: ScratchpadItem): vscode.TreeItem {
+  getTreeItem(element: TreeItem): vscode.TreeItem {
     return element;
   }
 
-  getChildren(element?: ScratchpadItem): Thenable<ScratchpadItem[]> {
+  getParent(element: TreeItem): TreeItem | undefined {
+    if (element instanceof ScratchpadItem) {
+      const parentId = element.parentId;
+      if (parentId) {
+        const folder = this.scratchpadService.getFolderById(parentId);
+        if (folder) {
+          const depth = this.scratchpadService.getFolderDepth(folder.id);
+          const isAtMaxDepth = depth >= 5;
+          return new ScratchpadFolderTreeItem(folder.name, folder.id, folder.parentId, folder.isExpanded, isAtMaxDepth);
+        }
+      }
+    } else if (element instanceof ScratchpadFolderTreeItem) {
+      if (element.parentId) {
+        const parentFolder = this.scratchpadService.getFolderById(element.parentId);
+        if (parentFolder) {
+          const depth = this.scratchpadService.getFolderDepth(parentFolder.id);
+          const isAtMaxDepth = depth >= 5;
+          return new ScratchpadFolderTreeItem(parentFolder.name, parentFolder.id, parentFolder.parentId, parentFolder.isExpanded, isAtMaxDepth);
+        }
+      }
+    }
+    return undefined;
+  }
+
+  async getChildren(element?: TreeItem): Promise<TreeItem[]> {
+    const folders = this.scratchpadService.getFolders();
+    const allFiles = this.scratchpadService.getScratchFiles();
+
     if (!element) {
-      const items = this.scratchpadService.getScratchFiles()
-        .map(file => new ScratchpadItem(file));
-      return Promise.resolve(items);
+      // Root level
+      const rootFolders = folders
+        .filter(f => !f.parentId)
+        .sort((a, b) => a.order - b.order)
+        .map(folder => {
+          const depth = this.scratchpadService.getFolderDepth(folder.id);
+          const isAtMaxDepth = depth >= 5;
+          return new ScratchpadFolderTreeItem(folder.name, folder.id, folder.parentId, folder.isExpanded, isAtMaxDepth);
+        });
+
+      const rootFiles = allFiles
+        .filter(f => !f.parentId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map(file => this.createScratchpadItem(file));
+
+      return [...rootFolders, ...rootFiles];
+    } else if (element instanceof ScratchpadFolderTreeItem) {
+      const childFolders = folders
+        .filter(f => f.parentId === element.id)
+        .sort((a, b) => a.order - b.order)
+        .map(folder => {
+          const depth = this.scratchpadService.getFolderDepth(folder.id);
+          const isAtMaxDepth = depth >= 5;
+          return new ScratchpadFolderTreeItem(folder.name, folder.id, folder.parentId, folder.isExpanded, isAtMaxDepth);
+        });
+
+      const childFiles = allFiles
+        .filter(f => f.parentId === element.id)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map(file => this.createScratchpadItem(file));
+
+      return [...childFolders, ...childFiles];
     }
 
-    // For now, we don't support children
-    return Promise.resolve([]);
+    return [];
+  }
+
+  private createScratchpadItem(file: { id: string; name: string; lastModified: number; language?: string; parentId?: string }): ScratchpadItem {
+    const item = new ScratchpadItem(file as any);
+    item.parentId = file.parentId;
+    return item;
   }
 
   refresh(): void {
@@ -66,6 +132,40 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
 
   async reorderScratchpad(draggedId: string, targetId?: string): Promise<void> {
     await this.scratchpadService.reorder(draggedId, targetId);
+    this.refresh();
+  }
+
+  async reorderItem(draggedId: string, targetId: string, dropPosition: 'before' | 'after'): Promise<void> {
+    await this.scratchpadService.reorderItem(draggedId, targetId, dropPosition);
+    this.refresh();
+  }
+
+  async addFolder(name: string, parentId?: string): Promise<ScratchpadFolder> {
+    const error = ScratchpadValidator.validateFolderName(name);
+    if (error) {
+      throw new Error(error);
+    }
+    const folder = await this.scratchpadService.addFolder(name, parentId);
+    this.refresh();
+    return folder;
+  }
+
+  async editFolder(id: string, name: string): Promise<void> {
+    const error = ScratchpadValidator.validateFolderName(name);
+    if (error) {
+      throw new Error(error);
+    }
+    await this.scratchpadService.editFolder(id, name);
+    this.refresh();
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    await this.scratchpadService.deleteFolder(id);
+    this.refresh();
+  }
+
+  async moveToFolder(itemId: string, targetFolderId?: string): Promise<void> {
+    await this.scratchpadService.moveToFolder(itemId, targetFolderId);
     this.refresh();
   }
 
@@ -122,7 +222,7 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
     return this.scratchpadService.loadFileContent(id);
   }
 
-  async createScratchpadForTools(params: { name?: string; language?: string; content?: string }): Promise<void> {
+  async createScratchpadForTools(params: { name?: string; language?: string; content?: string; parentFolderId?: string }): Promise<void> {
     const extension = this.getExtensionForLanguage(params.language);
     const content = params.content ?? '';
 
@@ -143,6 +243,9 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
     const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
     if (content.length > 0) {
       await this.scratchpadService.updateFileContent(scratchFile.id, content);
+    }
+    if (params.parentFolderId) {
+      await this.scratchpadService.moveToFolder(scratchFile.id, params.parentFolderId);
     }
     this.refresh();
   }
@@ -172,6 +275,16 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<ScratchpadIt
     }
 
     await this.scratchpadService.renameScratchFile(id, trimmed);
+    this.refresh();
+  }
+
+  async updateScratchpadContentForTools(id: string, content: string): Promise<void> {
+    const file = this.scratchpadService.getScratchFile(id);
+    if (!file) {
+      throw new Error('Scratchpad not found.');
+    }
+
+    await this.scratchpadService.updateFileContent(id, content);
     this.refresh();
   }
 
