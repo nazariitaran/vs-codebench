@@ -1,3 +1,12 @@
+# 1.2.0 - May 2026
+
+- Added hierarchical folder support for scratchpads (up to 5 levels deep).
+- Added scratchpad folder commands: New Scratchpad Folder, Add Subfolder, Edit Folder, Delete Folder.
+- Added drag-and-drop support for moving scratchpad files and folders between levels.
+- Extended GitHub Copilot tools for scratchpads: UpdateScratchpadContent, CreateScratchpadFolder, MoveScratchpadToFolder, DeleteScratchpadFolder (9 tools total).
+
+---
+
 # 1.1.0 - February 2026
 
 - Added GitHub Copilot tools for bookmarks and scratchpads.
