@@ -54,11 +54,13 @@ src/
 │   │       ├── BookmarkFolderTreeItem.ts
 │   │       └── BookmarkDragAndDropController.ts
 │   └── scratchpads/
-│       ├── Models.ts             # ScratchFile, ScratchpadData interfaces
-│       ├── ScratchpadAiTools.ts  # GitHub Copilot language model tools (scratchpad list/read/create/rename/delete)
+│       ├── Models.ts             # ScratchFile, ScratchpadFolder, ScratchpadData interfaces
+│       ├── ScratchpadAiTools.ts  # GitHub Copilot language model tools (9 tools)
 │       ├── ScratchpadService.ts
+│       ├── ScratchpadValidator.ts # Input validation (file/folder name, count limits)
 │       ├── ScratchpadCommands.ts
 │       ├── ScratchpadsProvider.ts
+│       ├── ScratchpadFolderTreeItem.ts  # Tree item for folder nodes
 │       ├── index.ts
 │       └── views/
 │           ├── ScratchpadItem.ts
@@ -95,7 +97,7 @@ Each feature (`todos`, `bookmarks`, `scratchpads`) follows the same layered stru
 ### GitHub Copilot Tools
 - Tools are contributed via `package.json` → `contributes.languageModelTools` and registered with `vscode.lm.registerTool(...)`.
 - Bookmark tools (8): `codebench_get_bookmarks`, `codebench_add_bookmark`, `codebench_move_bookmark_to_folder`, `codebench_rename_bookmark`, `codebench_set_bookmark_color`, `codebench_remove_bookmark`, `codebench_create_bookmark_folder`, `codebench_remove_bookmark_folder`.
-- Scratchpad tools (5): `codebench_get_scratchpads`, `codebench_get_scratchpad_content`, `codebench_create_scratchpad`, `codebench_rename_scratchpad`, `codebench_delete_scratchpad`.
+- Scratchpad tools (9): `codebench_get_scratchpads`, `codebench_get_scratchpad_content`, `codebench_create_scratchpad`, `codebench_update_scratchpad_content`, `codebench_rename_scratchpad`, `codebench_delete_scratchpad`, `codebench_create_scratchpad_folder`, `codebench_move_scratchpad_to_folder`, `codebench_delete_scratchpad_folder`.
 - Tool outputs are JSON text payloads wrapped in `LanguageModelToolResult`.
 
 ## Build & Development Commands
@@ -145,6 +147,7 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 ## Business Rules & Limits
 - Todos: max 100 total items, max 2 levels of nesting (parent → child → grandchild), text 1–75 chars
 - Bookmarks: max 200 items, folder depth up to 3 levels, bookmark text 1–75 chars, folder name 1–75 chars
+- Scratchpads: max 200 files, folder depth up to 5 levels, file text 1–75 chars, folder name 1–75 chars
 - Bookmark colors: `default` (blue), `red`, `green`, `yellow`, `purple`
 - All commands are prefixed with `vs-codebench.`
 
