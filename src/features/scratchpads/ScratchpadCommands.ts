@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ScratchpadsProvider } from './ScratchpadsProvider';
 import ScratchpadValidator from './ScratchpadValidator';
+import { ScratchFile } from './Models';
 
 export function registerScratchpadCommands(
   context: vscode.ExtensionContext,
@@ -78,6 +81,77 @@ export function registerScratchpadCommands(
     vscode.commands.registerCommand('vs-codebench.deleteScratchpadFolder', async (item: any) => {
       if (item && item.id) {
         await scratchpadsProvider.deleteFolder(item.id);
+      }
+    }),
+
+    vscode.commands.registerCommand('vs-codebench.importScratchpads', async () => {
+      const selected = await vscode.window.showOpenDialog({
+        canSelectFolders: true,
+        canSelectMany: false,
+        openLabel: 'Select folder to import scratchpads from'
+      });
+
+      if (!selected || selected.length === 0) {
+        return;
+      }
+
+      const dirPath = selected[0].fsPath;
+
+      const importChoice = await vscode.window.showQuickPick(
+        [
+          { label: 'Yes', description: "Import into a dedicated '_import' folder" },
+          { label: 'No', description: 'Import to root' }
+        ],
+        {
+          placeHolder: "Import into a dedicated folder?",
+          title: 'Import Scratchpads'
+        }
+      );
+
+      if (!importChoice) {
+        return;
+      }
+
+      let parentFolderId: string | undefined;
+      let folderName: string | undefined;
+      if (importChoice.label === 'Yes') {
+        folderName = scratchpadsProvider.scratchpadService.findNextImportFolderName();
+        const folder = await scratchpadsProvider.addFolder(folderName, undefined);
+        parentFolderId = folder.id;
+      }
+
+      const result = await scratchpadsProvider.importScratchpadsFromDirectory(dirPath, parentFolderId);
+
+      // Build summary
+      const parts: string[] = [];
+      if (result.imported > 0) { parts.push(`${result.imported} imported`); }
+      if (result.overwritten > 0) { parts.push(`${result.overwritten} overwritten`); }
+      if (result.skipped > 0) { parts.push(`${result.skipped} skipped (non-text or limit reached)`); }
+      if (result.errors > 0) { parts.push(`${result.errors} errors`); }
+
+      const message = parts.length > 0
+        ? `Import complete: ${parts.join(', ')}`
+        : 'Import complete: nothing to import';
+
+      vscode.window.showInformationMessage(message);
+
+      // Create import summary scratchpad
+      if (result.imported > 0 || result.overwritten > 0 || result.skipped > 0) {
+        const { summaryContent, importedFilePaths } = scratchpadsProvider.scratchpadService.buildImportSummary(
+          result,
+          dirPath,
+          folderName,
+          parentFolderId
+        );
+
+        // Use unique name to avoid conflict if summary already exists
+        const summaryName = 'import_summary_' + Date.now() + '.md';
+        const summaryScratchpad = await scratchpadsProvider.scratchpadService.createScratchFile(summaryName, 'markdown', parentFolderId);
+        await scratchpadsProvider.scratchpadService.updateFileContent(summaryScratchpad.id, summaryContent);
+
+        // Open the summary scratchpad
+        const doc = await vscode.workspace.openTextDocument(scratchpadsProvider.scratchpadService.getFilePath(summaryScratchpad.id));
+        await vscode.window.showTextDocument(doc);
       }
     })
   );

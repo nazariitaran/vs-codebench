@@ -216,6 +216,11 @@
         "title": "Delete Scratchpad Folder",
         "icon": "$(trash)",
         "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.importScratchpads",
+        "title": "Import Scratchpads from Directory",
+        "category": "CodeBench"
       }
     ],
     "languageModelTools": [
