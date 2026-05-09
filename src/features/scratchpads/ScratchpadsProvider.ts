@@ -2,9 +2,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ScratchpadItem } from './views/ScratchpadItem';
 import { ScratchpadFolderTreeItem } from './views/ScratchpadFolderTreeItem';
-import { ScratchpadService } from './ScratchpadService';
+import { ScratchpadService, ImportResult } from './ScratchpadService';
 import { ScratchpadFolder } from './Models';
-import ScratchpadValidator from './ScratchpadValidator';
 
 const LANGUAGE_TO_EXTENSION: Record<string, string> = {
   javascript: '.js',
@@ -141,20 +140,12 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
   }
 
   async addFolder(name: string, parentId?: string): Promise<ScratchpadFolder> {
-    const error = ScratchpadValidator.validateFolderName(name);
-    if (error) {
-      throw new Error(error);
-    }
     const folder = await this.scratchpadService.addFolder(name, parentId);
     this.refresh();
     return folder;
   }
 
   async editFolder(id: string, name: string): Promise<void> {
-    const error = ScratchpadValidator.validateFolderName(name);
-    if (error) {
-      throw new Error(error);
-    }
     await this.scratchpadService.editFolder(id, name);
     this.refresh();
   }
@@ -229,7 +220,6 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
     let fileName: string;
     if (params.name && params.name.trim().length > 0) {
       fileName = this.normalizeFileName(params.name.trim(), extension);
-      this.validateFileName(fileName);
       const exists = this.scratchpadService.getScratchFiles().some(f => f.name === fileName);
       if (exists) {
         throw new Error('A scratchpad with this name already exists.');
@@ -238,7 +228,6 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
       const fileNumber = this.scratchpadService.getNextFileNumber(extension);
       fileName = `scratchpad_${fileNumber}${extension}`;
     }
-
     const language = params.language || this.scratchpadService.getLanguageFromExtension(path.extname(fileName));
     const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
     if (content.length > 0) {
@@ -260,8 +249,6 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
     if (trimmed.length === 0) {
       throw new Error('File name cannot be empty.');
     }
-
-    this.validateFileName(trimmed);
 
     const providedExt = path.extname(trimmed);
     const oldExt = path.extname(file.name);
@@ -291,6 +278,33 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
   async deleteScratchFileForTools(id: string): Promise<void> {
     await this.scratchpadService.deleteScratchFile(id);
     this.refresh();
+  }
+
+  async importScratchpadsFromDirectory(
+    dirPath: string,
+    parentFolderId?: string
+  ): Promise<ImportResult> {
+    const result = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Importing Scratchpads',
+        cancellable: false
+      },
+      async (progress) => {
+        return this.scratchpadService.importScratchpadsFromDirectory(
+          dirPath,
+          parentFolderId,
+          (current, total, fileName) => {
+            progress.report({
+              message: `${current}/${total}: ${fileName}`,
+              increment: Math.floor(100 / total)
+            });
+          }
+        );
+      }
+    );
+    this.refresh();
+    return result;
   }
 
   async saveActiveUnsavedEditorAsScratchpad(): Promise<void> {
@@ -455,12 +469,6 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
       return fileName;
     }
     return `${fileName}${extension}`;
-  }
-
-  private validateFileName(fileName: string): void {
-    if (!/^[a-zA-Z0-9_\-. ]+$/.test(fileName)) {
-      throw new Error('File name contains invalid characters.');
-    }
   }
 
   private getExtensionForDocument(document: vscode.TextDocument): string {

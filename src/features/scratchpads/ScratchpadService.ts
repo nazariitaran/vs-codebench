@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
-import { ScratchFile, ScratchpadFolder, ScratchpadData, CURRENT_SCRATCHPAD_VERSION } from './Models';
+import { ScratchFile, ScratchpadFolder, ScratchpadData, CURRENT_SCRATCHPAD_VERSION, MAX_SCRATCH_FILES } from './Models';
 import { NamespacedStorageService, createNamespacedStorage } from '../../common/storage/StorageService';
 
 export class ScratchpadService {
@@ -82,6 +82,22 @@ export class ScratchpadService {
 
   getFolderById(id: string): ScratchpadFolder | undefined {
     return this.folders.find(f => f.id === id);
+  }
+
+  findNextImportFolderName(baseName: string = '_import'): string {
+    const existingNames = this.folders
+      .filter(f => f.name === baseName || f.name.startsWith(baseName + '_'))
+      .map(f => f.name);
+
+    if (!existingNames.includes(baseName)) {
+      return baseName;
+    }
+
+    let counter = 1;
+    while (existingNames.includes(`${baseName}_${counter}`)) {
+      counter++;
+    }
+    return `${baseName}_${counter}`;
   }
 
   async addFolder(name: string, parentId?: string): Promise<ScratchpadFolder> {
@@ -182,8 +198,8 @@ export class ScratchpadService {
       if (targetFolderId) {
         const targetDepth = this.getFolderDepth(targetFolderId);
         const folderDepth = this.getMaxFolderDepth(itemId);
-        if (targetDepth + folderDepth > 5) {
-          throw new Error('Moving this folder would exceed maximum depth (5 levels)');
+        if (targetDepth + folderDepth > 10) {
+          throw new Error('Moving this folder would exceed maximum depth (10 levels)');
         }
       }
 
@@ -292,8 +308,8 @@ export class ScratchpadService {
     if (draggedFolder && targetParentId !== undefined) {
       const targetDepth = this.getFolderDepth(targetParentId);
       const folderDepth = this.getMaxFolderDepth(draggedFolder.id);
-      if (targetDepth + folderDepth > 5) {
-        throw new Error('Moving this folder would exceed maximum depth (5 levels)');
+      if (targetDepth + folderDepth > 10) {
+        throw new Error('Moving this folder would exceed maximum depth (10 levels)');
       }
     }
 
@@ -411,7 +427,7 @@ export class ScratchpadService {
     return path.join(this.scratchpadDirectory, `${id}.txt`);
   }
 
-  async createScratchFile(fileName: string, language?: string): Promise<ScratchFile> {
+  async createScratchFile(fileName: string, language?: string, parentFolderId?: string): Promise<ScratchFile> {
     const id = uuidv4();
 
     const scratchFile: ScratchFile = {
@@ -419,6 +435,7 @@ export class ScratchpadService {
       name: fileName,
       content: '',
       language,
+      parentId: parentFolderId,
       createdAt: Date.now(),
       lastModified: Date.now(),
       order: this.getNextOrderIndex()
@@ -617,4 +634,334 @@ export class ScratchpadService {
     }
     return '';
   }
+
+  // ─── Import from Directory ────────────────────────────────────────────────────
+
+  private static readonly MAX_SCRATCH_FILES = 400;
+  private static readonly MAX_FOLDER_DEPTH = 10;
+  private static readonly TEXT_SAMPLE_BYTES = 8192;
+
+  async importScratchpadsFromDirectory(
+    dirPath: string,
+    parentFolderId?: string,
+    onProgress?: (current: number, total: number, fileName: string) => void
+  ): Promise<ImportResult> {
+    const result: ImportResult = {
+      imported: 0,
+      skipped: 0,
+      overwritten: 0,
+      errors: 0,
+      errorMessages: [],
+      discoveredFiles: [],
+      skippedFiles: [],
+      importedFileIds: []
+    };
+
+    // Collect all text files first (collect all files for discovery, even non-text)
+    const { filesToImport, discoveredFiles, skippedFiles, skippedDueToLimit } = await this.collectTextFiles(dirPath, parentFolderId);
+    result.discoveredFiles = discoveredFiles;
+    result.skippedFiles = [...skippedFiles, ...skippedDueToLimit];
+    result.skipped = result.skippedFiles.length;
+    const total = filesToImport.length;
+
+    // Handle count limit
+    const currentCount = this.scratchFiles.size;
+    const availableSlots = Math.max(0, ScratchpadService.MAX_SCRATCH_FILES - currentCount);
+
+    if (filesToImport.length > availableSlots) {
+      // Sort by path length (shorter first = closer to root) to prioritize shallow files
+      filesToImport.sort((a, b) => {
+        const depth = (p: string) => p.split(path.sep).filter(Boolean).length;
+        return depth(a.absolutePath) - depth(b.absolutePath);
+      });
+    }
+
+    for (let i = 0; i < filesToImport.length; i++) {
+      const fileInfo = filesToImport[i];
+
+      // Check if we've reached the limit
+      if (this.scratchFiles.size >= ScratchpadService.MAX_SCRATCH_FILES) {
+        result.skipped += filesToImport.length - i;
+        result.skippedFiles.push(...filesToImport.slice(i).map(f => f.relativePath + ' (limit reached)'));
+        break;
+      }
+
+      // Report progress
+      if (onProgress) {
+        onProgress(i + 1, total, fileInfo.name);
+      }
+
+      try {
+        const existing = this.findScratchpadByName(fileInfo.name, fileInfo.parentId);
+        if (existing) {
+          // Overwrite content, keep ID
+          await this.updateFileContent(existing.id, fileInfo.content);
+          result.overwritten++;
+        } else {
+          // Create new
+          const scratchFile = await this.createScratchFile(fileInfo.name, fileInfo.language);
+          await this.updateFileContent(scratchFile.id, fileInfo.content);
+          if (fileInfo.parentId) {
+            await this.moveToFolder(scratchFile.id, fileInfo.parentId);
+          }
+          result.imported++;
+          result.importedFileIds.push(scratchFile.id);
+        }
+      } catch (error) {
+        result.errors++;
+        if (result.errorMessages.length < 10) {
+          result.errorMessages.push(`${fileInfo.name}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  buildImportSummary(
+    result: ImportResult,
+    dirPath: string,
+    folderName: string | undefined,
+    parentFolderId?: string
+  ): { summaryContent: string; importedFilePaths: string[] } {
+    const timestamp = new Date().toLocaleString();
+
+    // Build ASCII tree from file list
+    const buildTree = (files: string[]): string => {
+      if (files.length === 0) { return '  (empty)'; }
+      interface TreeNode { [key: string]: TreeNode | string[] | undefined; }
+      const tree: TreeNode = {};
+      for (const f of files) {
+        const parts = f.split('/');
+        let current: TreeNode = tree;
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (i === parts.length - 1) {
+            if (part === '') {
+              // Path ends with '/' — this is a folder-only entry; node already created above
+              break;
+            }
+            // File
+            if (!current['@files']) { current['@files'] = []; }
+            (current['@files'] as string[]).push(part);
+          } else {
+            // Folder
+            if (!current[part]) { current[part] = {}; }
+            current = current[part] as TreeNode;
+          }
+        }
+      }
+      const render = (node: TreeNode, prefix: string = ''): string => {
+        let output = '';
+        const dirs = Object.keys(node).filter(k => k !== '@files').sort();
+        const files_list = (node['@files'] as string[]) || [];
+        for (let i = 0; i < dirs.length; i++) {
+          const isLast = i === dirs.length - 1 && files_list.length === 0;
+          output += prefix + (isLast ? '└── ' : '├── ') + dirs[i] + '/\n';
+          output += render(node[dirs[i]] as TreeNode, prefix + (isLast ? '    ' : '│   '));
+        }
+        for (let i = 0; i < files_list.length; i++) {
+          const isLast = i === files_list.length - 1;
+          output += prefix + (isLast ? '└── ' : '├── ') + files_list[i] + '\n';
+        }
+        return output;
+      };
+      return render(tree);
+    };
+
+    // Sort discovered and skipped files
+    const discoveredFiles = [...result.discoveredFiles].sort();
+    const skippedFiles = [...result.skippedFiles].sort();
+
+    // Build imported files list with folder structure
+    const importedFiles = result.importedFileIds
+      .map(id => this.scratchFiles.get(id))
+      .filter((f): f is ScratchFile => f !== undefined);
+
+    // Build folder path map (folderId -> path like "src/utils")
+    const folders = this.getFolders();
+    const folderPathMap: { [id: string]: string } = {};
+    const buildFolderPath = (folderId: string): string => {
+      if (folderPathMap[folderId]) { return folderPathMap[folderId]; }
+      const folder = folders.find(f => f.id === folderId);
+      if (!folder) { return ''; }
+      const parentPath = folder.parentId ? buildFolderPath(folder.parentId) : '';
+      const fp = parentPath ? parentPath + '/' + folder.name : folder.name;
+      folderPathMap[folderId] = fp;
+      return fp;
+    };
+
+    // Build imported file paths with folder structure
+    const importedFilePaths: string[] = [];
+    for (const file of importedFiles) {
+      const fp = file.parentId ? buildFolderPath(file.parentId) : '';
+      importedFilePaths.push(fp ? fp + '/' + file.name : file.name);
+    }
+    importedFilePaths.sort();
+
+    let summaryContent = `# Import Summary - ${timestamp}\n\n` +
+      `**Source:** \`${dirPath}\`\n` +
+      `**Folder:** ${folderName ?? 'Root'}\n\n` +
+      `## Results\n` +
+      `- Imported: ${result.imported}\n` +
+      (result.overwritten > 0 ? `- Overwritten: ${result.overwritten}\n` : '') +
+      (result.skipped > 0 ? `- Skipped: ${result.skipped}\n` : '') +
+      (result.errors > 0 ? `- Errors: ${result.errors}\n` : '') +
+      '\n## Discovered Files (' + discoveredFiles.filter(f => !f.endsWith('/')).length + ')\n```\n' + buildTree(discoveredFiles) + '```\n';
+    if (skippedFiles.length > 0) {
+      summaryContent += '\n## Skipped Files (' + skippedFiles.length + ')\n```\n' + buildTree(skippedFiles) + '```\n';
+    }
+    summaryContent += '\n## Imported Files (' + importedFiles.length + ')\n```\n' + buildTree(importedFilePaths) + '```\n';
+    if (result.errors > 0 && result.errorMessages.length > 0) {
+      summaryContent += '\n## Errors\n';
+      for (const err of result.errorMessages) {
+        summaryContent += `- ${err}\n`;
+      }
+    }
+
+    return { summaryContent, importedFilePaths };
+  }
+
+  private async collectTextFiles(
+    dirPath: string,
+    parentFolderId?: string,
+    prefix: string = ''
+  ): Promise<{
+    filesToImport: ImportFileInfo[];
+    discoveredFiles: string[];
+    skippedFiles: string[];
+    skippedDueToLimit: string[];
+  }> {
+    const files: ImportFileInfo[] = [];
+    const discoveredFiles: string[] = [];
+    const skippedFiles: string[] = [];
+    const skippedDueToLimit: string[] = [];
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+
+      // Skip symlinks
+      try {
+        const stat = await fs.promises.lstat(fullPath);
+        if (stat.isSymbolicLink()) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        // Create or find folder, then recurse
+        let folderId = parentFolderId;
+        const depth = parentFolderId ? this.getFolderDepth(parentFolderId) : 0;
+        if (depth < ScratchpadService.MAX_FOLDER_DEPTH) {
+          // Check if folder exists at this level
+          const existingFolder = this.folders.find(
+            f => f.name === entry.name && f.parentId === parentFolderId
+          );
+          if (existingFolder) {
+            folderId = existingFolder.id;
+          } else {
+            const created = await this.addFolder(entry.name, parentFolderId);
+            folderId = created.id;
+          }
+          // Discover directory in tree
+          discoveredFiles.push(prefix + entry.name + '/');
+          const childResult = await this.collectTextFiles(fullPath, folderId, prefix + entry.name + '/');
+          files.push(...childResult.filesToImport);
+          discoveredFiles.push(...childResult.discoveredFiles);
+          skippedFiles.push(...childResult.skippedFiles);
+          skippedDueToLimit.push(...childResult.skippedDueToLimit);
+        } else {
+          // Exceed depth, import files into deepest valid folder
+          const childResult = await this.collectTextFiles(fullPath, folderId, prefix + entry.name + '/');
+          files.push(...childResult.filesToImport);
+          discoveredFiles.push(...childResult.discoveredFiles);
+          skippedFiles.push(...childResult.skippedFiles);
+          skippedDueToLimit.push(...childResult.skippedDueToLimit);
+        }
+      } else if (entry.isFile()) {
+        // Check if text file
+        const isText = await this.isTextFile(fullPath);
+        const relativePath = prefix + entry.name;
+        discoveredFiles.push(relativePath);
+        if (!isText) {
+          skippedFiles.push(relativePath + ' (binary)');
+          continue;
+        }
+
+        // Read content
+        let content = '';
+        try {
+          content = await fs.promises.readFile(fullPath, 'utf8');
+        } catch {
+          skippedFiles.push(relativePath + ' (read error)');
+          continue;
+        }
+
+        // Detect language
+        const language = this.getLanguageFromExtension(path.extname(entry.name));
+
+        files.push({
+          name: entry.name,
+          content,
+          language,
+          parentId: parentFolderId,
+          absolutePath: fullPath,
+          relativePath
+        });
+      }
+    }
+
+    return { filesToImport: files, discoveredFiles, skippedFiles, skippedDueToLimit };
+  }
+
+  private async isTextFile(filePath: string): Promise<boolean> {
+    let fd: import('fs').promises.FileHandle | undefined;
+    try {
+      fd = await fs.promises.open(filePath, 'r');
+      const buffer = Buffer.alloc(ScratchpadService.TEXT_SAMPLE_BYTES);
+      const { bytesRead } = await fd.read(buffer, 0, ScratchpadService.TEXT_SAMPLE_BYTES, 0);
+      // Check for null bytes in the sample
+      for (let i = 0; i < bytesRead; i++) {
+        if (buffer[i] === 0) {
+          return false;
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      if (fd) {
+        await fd.close();
+      }
+    }
+  }
+
+  private findScratchpadByName(name: string, parentId?: string): ScratchFile | undefined {
+    return Array.from(this.scratchFiles.values()).find(
+      f => f.name === name && f.parentId === parentId
+    );
+  }
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  overwritten: number;
+  errors: number;
+  errorMessages: string[];
+  discoveredFiles: string[];
+  skippedFiles: string[];
+  importedFileIds: string[];
+}
+
+interface ImportFileInfo {
+  name: string;
+  content: string;
+  language?: string;
+  parentId?: string;
+  absolutePath: string;
+  relativePath: string;
 }

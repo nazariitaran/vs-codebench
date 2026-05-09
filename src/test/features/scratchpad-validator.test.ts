@@ -71,19 +71,19 @@ suite('ScratchpadValidator', () => {
       assert.strictEqual(ScratchpadValidator.validateTotalCount(files), null);
     });
 
-    test('returns error when at 200 files (limit reached)', () => {
-      const files = Array.from({ length: 200 }, (_, i) => ({ id: `file-${i}` }));
+    test('returns error when at 400 files (limit reached)', () => {
+      const files = Array.from({ length: 400 }, (_, i) => ({ id: `file-${i}` }));
       assert.strictEqual(
         ScratchpadValidator.validateTotalCount(files),
-        'Maximum of 200 scratchpads reached.'
+        'Maximum of 400 scratchpads reached.'
       );
     });
 
     test('returns error when over limit', () => {
-      const files = Array.from({ length: 201 }, (_, i) => ({ id: `file-${i}` }));
+      const files = Array.from({ length: 401 }, (_, i) => ({ id: `file-${i}` }));
       assert.strictEqual(
         ScratchpadValidator.validateTotalCount(files),
-        'Maximum of 200 scratchpads reached.'
+        'Maximum of 400 scratchpads reached.'
       );
     });
   });

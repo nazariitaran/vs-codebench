@@ -154,21 +154,27 @@ suite('ScratchpadService - folders', () => {
       );
     });
 
-    test('throws when moving folder would exceed max depth (5)', async () => {
+    test('throws when moving folder would exceed max depth (10)', async () => {
       // Build two parallel chains so that we don't trigger isDescendantOf
-      // Chain 1: l1 -> l2 -> l3 -> l4 (depth 4 at l4)
+      // Chain 1: l1 -> l2 -> ... -> l10 (depth 10 at l10)
       const l1 = await service.addFolder('L1');
       const l2 = await service.addFolder('L2', l1.id);
       const l3 = await service.addFolder('L3', l2.id);
       const l4 = await service.addFolder('L4', l3.id);
+      const l5 = await service.addFolder('L5', l4.id);
+      const l6 = await service.addFolder('L6', l5.id);
+      const l7 = await service.addFolder('L7', l6.id);
+      const l8 = await service.addFolder('L8', l7.id);
+      const l9 = await service.addFolder('L9', l8.id);
+      const l10 = await service.addFolder('L10', l9.id);
       // Chain 2: r1 -> r2 (depth 2 at r2)
       const r1 = await service.addFolder('R1');
       const r2 = await service.addFolder('R2', r1.id);
-      // l4 is at depth 4, r2 is at depth 2
-      // moveToFolder(l1, r2) -> targetDepth(r2)=2 + maxFolderDepth(l1)=4 = 6 > 5
+      // l10 is at depth 10, r2 is at depth 2
+      // moveToFolder(l1, r2) -> targetDepth(r2)=2 + maxFolderDepth(l1)=10 = 12 > 10
       await assert.rejects(
         () => service.moveToFolder(l1.id, r2.id),
-        /exceed maximum depth.*5 levels/
+        /exceed maximum depth.*10 levels/
       );
     });
 

@@ -1,5 +1,7 @@
+import { MAX_SCRATCH_FILES } from './Models';
+
 export default class ScratchpadValidator {
-  private static readonly MAX_TOTAL_FILES = 200;
+  private static readonly MAX_TOTAL_FILES = MAX_SCRATCH_FILES;
   private static readonly MIN_FOLDER_NAME_LENGTH = 1;
   private static readonly MAX_FOLDER_NAME_LENGTH = 75;
   private static readonly MIN_FILE_NAME_LENGTH = 1;

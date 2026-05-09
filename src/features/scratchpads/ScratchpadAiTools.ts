@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ScratchpadsProvider } from './ScratchpadsProvider';
+import ScratchpadValidator from './ScratchpadValidator';
 
 interface GetScratchpadsInput {
   language?: string;
@@ -230,6 +231,13 @@ class CreateScratchpadFolderTool implements vscode.LanguageModelTool<CreateScrat
     options: vscode.LanguageModelToolInvocationOptions<CreateScratchpadFolderInput>
   ): Promise<vscode.LanguageModelToolResult> {
     const input = options.input;
+
+    // Validate folder name before creation
+    const validationError = ScratchpadValidator.validateFolderName(input.name);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
     const folder = await this.scratchpadsProvider.addFolder(input.name, input.parentFolderId);
 
     return resultFromObject({

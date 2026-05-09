@@ -1,3 +1,5 @@
+export const MAX_SCRATCH_FILES = 400;
+
 export interface ScratchFile {
     id: string;
     name: string;
