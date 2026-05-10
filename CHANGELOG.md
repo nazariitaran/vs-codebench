@@ -1,3 +1,13 @@
+# 1.3.0 - May 2026
+
+- Added a scratchpad import workflow that can ingest a folder tree, preserve structure, skip binary files and symlinks, overwrite matching scratchpads in place, and generate an import summary scratchpad.
+- Refactored scratchpads onto a dedicated `codebench-scratchpad` file system so logical names and folder paths stay stable even when backing files are renamed or migrated.
+- Expanded scratchpad folder workflows with create-in-folder actions, recursive folder deletion with confirmation, and cleanup of backing files when folders are removed.
+- Expanded GitHub Copilot scratchpad tools to 11 operations, including folder create/rename/move/delete, root moves, root-level and workspace-wide listing, and direct content reads/updates.
+- Increased scratchpad capacity to 400 files and expanded scratchpad folder depth handling to 10 levels for imports and moves.
+
+---
+
 # 1.2.0 - May 2026
 
 - Added hierarchical folder support for scratchpads (up to 5 levels deep).
