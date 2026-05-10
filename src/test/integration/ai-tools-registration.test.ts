@@ -48,7 +48,9 @@ suite('AI tools registration', () => {
       'codebench_rename_scratchpad',
       'codebench_delete_scratchpad',
       'codebench_create_scratchpad_folder',
+      'codebench_rename_scratchpad_folder',
       'codebench_move_scratchpad_to_folder',
+      'codebench_move_scratchpad_folder',
       'codebench_delete_scratchpad_folder'
     ];
 

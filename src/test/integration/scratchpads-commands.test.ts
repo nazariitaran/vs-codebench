@@ -38,7 +38,7 @@ suite('Scratchpads: command-driven flows', () => {
     // Create scratchpad via command with stubbed inputs
     stub(vscode.window, 'showInputBox', async () => 'notes.md');
     // If language is requested via quick pick, return 'markdown'
-    stub(vscode.window, 'showQuickPick', async () => ({ label: 'markdown' } as any));
+    stub(vscode.window, 'showQuickPick', async () => ({ label: 'Markdown', extension: '.md' } as any));
 
     await vscode.commands.executeCommand('vs-codebench.createScratchpad');
 
@@ -167,6 +167,30 @@ suite('Scratchpads: command-driven flows', () => {
     assert.strictEqual(scratchpadsProvider.scratchpadService.getFolderById(childFolder.id), undefined);
     assert.strictEqual(scratchpadsProvider.scratchpadService.getScratchFile(rootFile.id), undefined);
     assert.strictEqual(scratchpadsProvider.scratchpadService.getScratchFile(childFile.id), undefined);
+  });
+
+  test('Create scratchpad in folder via command assigns parent folder', async function () {
+    this.timeout(20000);
+    const { scratchpadsProvider } = extension.exports as any;
+    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
+
+    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
+    }
+    for (const folder of [...scratchpadsProvider.scratchpadService.getFolders()]) {
+      await scratchpadsProvider.deleteFolderForTools(folder.id);
+    }
+
+    const parentFolder = await scratchpadsProvider.addFolder('Parent Folder');
+
+    stub(vscode.window, 'showQuickPick', async () => ({ label: 'Markdown', extension: '.md' } as any));
+
+    await vscode.commands.executeCommand('vs-codebench.createScratchpadInFolder', { id: parentFolder.id });
+
+    const files = scratchpadsProvider.scratchpadService.getScratchFiles();
+    assert.strictEqual(files.length, 1, 'One scratchpad should be created');
+    assert.strictEqual(files[0].parentId, parentFolder.id, 'Scratchpad should be created in the selected folder');
+    assert.strictEqual(files[0].name.endsWith('.md'), true, 'Scratchpad should use the selected extension');
   });
 
   test('Delete scratchpad folder keeps subtree when confirmation is cancelled', async function () {

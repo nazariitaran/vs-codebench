@@ -36,17 +36,24 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
 
   public scratchpadService: ScratchpadService;
   private openDocuments: Map<string, vscode.TextDocument> = new Map();
+  private loadPromise: Promise<void>;
 
   constructor(private context: vscode.ExtensionContext, scratchpadService?: ScratchpadService) {
     this.scratchpadService = scratchpadService || new ScratchpadService(context);
-    this.loadScratchFiles().catch(console.error);
+    this.loadPromise = this.loadScratchFiles();
+    this.loadPromise.catch(console.error);
     context.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument(this.onDocumentChange, this),
       vscode.workspace.onDidCloseTextDocument(this.onDocumentClose, this),
       vscode.workspace.onDidChangeWorkspaceFolders(() => {
-        this.loadScratchFiles().catch(console.error);
+        this.loadPromise = this.loadScratchFiles();
+        this.loadPromise.catch(console.error);
       })
     );
+  }
+
+  async whenReady(): Promise<void> {
+    await this.loadPromise;
   }
 
   getTreeItem(element: TreeItem): vscode.TreeItem {
@@ -187,7 +194,7 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
     this.refresh();
   }
 
-  async createScratchFile(): Promise<void> {
+  async createScratchFile(parentFolderId?: string): Promise<void> {
     // For now, simple list of file types
     const fileTypes = [
       { label: 'JavaScript', extension: '.js' },
@@ -220,7 +227,7 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
       return;
     }
 
-    await this.createScratchpadFromExtension(selected.extension);
+    await this.createScratchpadFromExtension(selected.extension, '', parentFolderId);
   }
 
   getAllScratchpads() {
@@ -256,12 +263,9 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
       fileName = `scratchpad_${fileNumber}${extension}`;
     }
     const language = params.language || this.scratchpadService.getLanguageFromExtension(path.extname(fileName));
-    const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
+    const scratchFile = await this.scratchpadService.createScratchFile(fileName, language, params.parentFolderId);
     if (content.length > 0) {
       await this.scratchpadService.updateFileContent(scratchFile.id, content);
-    }
-    if (params.parentFolderId) {
-      await this.scratchpadService.moveToFolder(scratchFile.id, params.parentFolderId);
     }
     this.refresh();
   }
@@ -466,12 +470,12 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
     this.refresh();
   }
 
-  private async createScratchpadFromExtension(extension: string, content = ''): Promise<void> {
+  private async createScratchpadFromExtension(extension: string, content = '', parentFolderId?: string): Promise<void> {
     const fileNumber = this.scratchpadService.getNextFileNumber(extension);
     const fileName = `scratchpad_${fileNumber}${extension}`;
     const language = this.scratchpadService.getLanguageFromExtension(extension);
 
-    const scratchFile = await this.scratchpadService.createScratchFile(fileName, language);
+    const scratchFile = await this.scratchpadService.createScratchFile(fileName, language, parentFolderId);
     if (content.length > 0) {
       await this.scratchpadService.updateFileContent(scratchFile.id, content);
     }
