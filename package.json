@@ -36,7 +36,8 @@
   "license": "MIT",
   "pricing": "Free",
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onFileSystem:codebench-scratchpad"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -161,6 +162,12 @@
       {
         "command": "vs-codebench.createScratchpad",
         "title": "Create Scratchpad",
+        "icon": "$(new-file)",
+        "category": "CodeBench"
+      },
+      {
+        "command": "vs-codebench.createScratchpadInFolder",
+        "title": "Create Scratchpad Here",
         "icon": "$(new-file)",
         "category": "CodeBench"
       },
@@ -417,7 +424,7 @@
         "name": "codebench_get_scratchpads",
         "displayName": "Get Scratchpads",
         "userDescription": "Read scratchpads from VS CodeBench.",
-        "modelDescription": "List scratchpad metadata for the current workspace, optionally filtered by language or name substring. This tool does not return scratchpad content.",
+        "modelDescription": "List scratchpad metadata for the current workspace. By default this returns root-level scratchpads only, plus all folder metadata. Use folderId to inspect one folder or includeAll=true to list scratchpads across all folders. This tool does not return scratchpad content.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "codebench-scratchpads",
         "inputSchema": {
@@ -434,6 +441,10 @@
             "folderId": {
               "type": "string",
               "description": "Optional folder ID to filter scratchpads by parent folder."
+            },
+            "includeAll": {
+              "type": "boolean",
+              "description": "When true and folderId is omitted, return scratchpads from all folders instead of root-level only."
             }
           },
           "additionalProperties": false
@@ -462,7 +473,7 @@
         "name": "codebench_create_scratchpad",
         "displayName": "Create Scratchpad",
         "userDescription": "Create a scratchpad in VS CodeBench.",
-        "modelDescription": "Create a scratchpad with optional name, language, and content. If name is omitted, a default scratchpad_<n>.<ext> name is generated.",
+        "modelDescription": "Create a scratchpad with optional name, language, content, and parentFolderId. If name is omitted, a default scratchpad_<n>.<ext> name is generated. Use get_scratchpads first when you need a target folder ID.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "codebench-create-scratchpad",
         "inputSchema": {
@@ -577,15 +588,38 @@
         }
       },
       {
+        "name": "codebench_rename_scratchpad_folder",
+        "displayName": "Rename Scratchpad Folder",
+        "userDescription": "Rename a scratchpad folder in VS CodeBench.",
+        "modelDescription": "Rename an existing scratchpad folder by folderId. Use get_scratchpads first to discover valid folder IDs.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-rename-scratchpad-folder",
+        "inputSchema": {
+          "type": "object",
+          "required": ["folderId", "newName"],
+          "properties": {
+            "folderId": {
+              "type": "string",
+              "description": "ID of the scratchpad folder to rename."
+            },
+            "newName": {
+              "type": "string",
+              "description": "New folder name."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
         "name": "codebench_move_scratchpad_to_folder",
         "displayName": "Move Scratchpad To Folder",
         "userDescription": "Move an existing scratchpad into a scratchpad folder.",
-        "modelDescription": "Place an existing VS CodeBench scratchpad into a specific folder. Use get_scratchpads first to resolve scratchpadId and folderId.",
+        "modelDescription": "Place an existing VS CodeBench scratchpad into a specific folder. Use get_scratchpads first to resolve scratchpadId and folderId. Omit folderId to move the scratchpad back to the root.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "codebench-move-scratchpad-folder",
         "inputSchema": {
           "type": "object",
-          "required": ["scratchpadId", "folderId"],
+          "required": ["scratchpadId"],
           "properties": {
             "scratchpadId": {
               "type": "string",
@@ -593,7 +627,30 @@
             },
             "folderId": {
               "type": "string",
-              "description": "Target scratchpad folder ID."
+              "description": "Optional target scratchpad folder ID. Omit to move the scratchpad to the root."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_move_scratchpad_folder",
+        "displayName": "Move Scratchpad Folder",
+        "userDescription": "Move a scratchpad folder in VS CodeBench.",
+        "modelDescription": "Move an existing scratchpad folder under another scratchpad folder. Use get_scratchpads first to resolve folder IDs. Omit targetFolderId to move the folder to the root.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-move-scratchpad-folder-node",
+        "inputSchema": {
+          "type": "object",
+          "required": ["folderId"],
+          "properties": {
+            "folderId": {
+              "type": "string",
+              "description": "Existing scratchpad folder ID to move."
+            },
+            "targetFolderId": {
+              "type": "string",
+              "description": "Optional destination folder ID. Omit to move the folder to the root."
             }
           },
           "additionalProperties": false
@@ -603,7 +660,7 @@
         "name": "codebench_delete_scratchpad_folder",
         "displayName": "Delete Scratchpad Folder",
         "userDescription": "Delete a scratchpad folder and its contents.",
-        "modelDescription": "Delete a scratchpad folder by folderId. Recursively removes all nested subfolders and moves contained scratchpads to root.",
+        "modelDescription": "Delete a scratchpad folder by folderId. Recursively removes the folder, all nested subfolders, and all contained scratchpads.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "codebench-delete-scratchpad-folder",
         "inputSchema": {
@@ -696,12 +753,12 @@
           "group": "navigation@6"
         },
         {
-          "command": "vs-codebench.createScratchpad",
+          "command": "vs-codebench.addRootScratchpadFolder",
           "when": "view == scratchpadsView",
           "group": "navigation"
         },
         {
-          "command": "vs-codebench.addRootScratchpadFolder",
+          "command": "vs-codebench.createScratchpad",
           "when": "view == scratchpadsView",
           "group": "navigation@2"
         }
@@ -731,6 +788,11 @@
           "command": "vs-codebench.moveTodoDown",
           "when": "view == todosView && (viewItem == todoItem || viewItem == todoItemMaxDepth)",
           "group": "navigation@2"
+        },
+        {
+          "command": "vs-codebench.createScratchpadInFolder",
+          "when": "view == scratchpadsView && (viewItem == scratchpadFolder || viewItem == scratchpadFolderMaxDepth)",
+          "group": "inline@1"
         },
         {
           "command": "vs-codebench.addFolder",
@@ -773,14 +835,19 @@
           "group": "inline@2"
         },
         {
+          "command": "vs-codebench.createScratchpadInFolder",
+          "when": "view == scratchpadsView && (viewItem == scratchpadFolder || viewItem == scratchpadFolderMaxDepth)",
+          "group": "inline@0"
+        },
+        {
           "command": "vs-codebench.addScratchpadFolder",
           "when": "view == scratchpadsView && viewItem == scratchpadFolder",
-          "group": "inline@0"
+          "group": "inline@1"
         },
         {
           "command": "vs-codebench.editScratchpadFolder",
           "when": "view == scratchpadsView && (viewItem == scratchpadFolder || viewItem == scratchpadFolderMaxDepth)",
-          "group": "inline@1"
+          "group": "inline@2"
         },
         {
           "command": "vs-codebench.deleteScratchpadFolder",

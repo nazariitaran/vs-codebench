@@ -164,6 +164,7 @@ console.log('Even numbers:', evenNumbers);`;
     assert.ok(commands.includes('vs-codebench.toggleBookmark'), 'Toggle bookmark command should be registered');
     assert.ok(commands.includes('vs-codebench.addTodo'), 'Add todo command should be registered');
     assert.ok(commands.includes('vs-codebench.createScratchpad'), 'Create scratchpad command should be registered');
+    assert.ok(commands.includes('vs-codebench.createScratchpadInFolder'), 'Create scratchpad in folder command should be registered');
   });
 
   test('Test tree view visibility', async function () {

@@ -15,7 +15,8 @@ export class ScratchpadFileSystemProvider implements vscode.FileSystemProvider {
     return new vscode.Disposable(() => {});
   }
 
-  stat(uri: vscode.Uri): vscode.FileStat {
+  async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
+    await this.scratchpadsProvider.whenReady();
     const file = this.getScratchFileForUri(uri);
     const content = this.scratchpadsProvider.scratchpadService.loadFileContent(file.id);
 
@@ -35,7 +36,8 @@ export class ScratchpadFileSystemProvider implements vscode.FileSystemProvider {
     throw vscode.FileSystemError.NoPermissions('Scratchpad directories are managed by VS CodeBench.');
   }
 
-  readFile(uri: vscode.Uri): Uint8Array {
+  async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+    await this.scratchpadsProvider.whenReady();
     const file = this.getScratchFileForUri(uri);
     const content = this.scratchpadsProvider.scratchpadService.loadFileContent(file.id);
     return this.encoder.encode(content);
@@ -46,6 +48,7 @@ export class ScratchpadFileSystemProvider implements vscode.FileSystemProvider {
     content: Uint8Array,
     options: { readonly create: boolean; readonly overwrite: boolean; }
   ): Promise<void> {
+    await this.scratchpadsProvider.whenReady();
     const id = this.getScratchpadId(uri);
     const existing = this.scratchpadsProvider.scratchpadService.getScratchFile(id);
 
@@ -63,6 +66,7 @@ export class ScratchpadFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   async delete(uri: vscode.Uri): Promise<void> {
+    await this.scratchpadsProvider.whenReady();
     const id = this.getScratchpadId(uri);
     await this.scratchpadsProvider.deleteScratchFileForTools(id);
     this.scratchpadsProvider.refresh();
@@ -74,6 +78,7 @@ export class ScratchpadFileSystemProvider implements vscode.FileSystemProvider {
     newUri: vscode.Uri,
     _options: { readonly overwrite: boolean; }
   ): Promise<void> {
+    await this.scratchpadsProvider.whenReady();
     const id = this.getScratchpadId(oldUri);
     const targetName = path.posix.basename(newUri.path);
 

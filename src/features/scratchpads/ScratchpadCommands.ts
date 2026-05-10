@@ -14,6 +14,10 @@ export function registerScratchpadCommands(
       await scratchpadsProvider.createScratchFile();
     }),
 
+    vscode.commands.registerCommand('vs-codebench.createScratchpadInFolder', async (item?: any) => {
+      await scratchpadsProvider.createScratchFile(item?.id);
+    }),
+
     vscode.commands.registerCommand('vs-codebench.saveUnsavedAsScratchpad', async () => {
       await scratchpadsProvider.saveActiveUnsavedEditorAsScratchpad();
     }),
