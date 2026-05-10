@@ -1,7 +1,7 @@
 # AGENTS.md — VS CodeBench
 
 ## Project Overview
-VS CodeBench is a VS Code extension (TypeScript) that provides three productivity features in a single sidebar panel: hierarchical **Todos**, line-level **Bookmarks** (with color & folders), and persistent **Scratchpads**. It also exposes GitHub Copilot language model tools for bookmark and scratchpad operations. All data is scoped to the active workspace via VS Code's `Memento` storage API.
+VS CodeBench is a VS Code extension (TypeScript) that provides three productivity features in a single sidebar panel: hierarchical **Todos**, line-level **Bookmarks** (with color & folders), and persistent **Scratchpads**. It also exposes GitHub Copilot language model tools for bookmark and scratchpad operations. Todo and bookmark data, plus scratchpad metadata, are workspace-scoped via VS Code's `Memento` storage API; scratchpad file contents are stored as extension-managed backing files under the workspace/global storage directory.
 
 - **Publisher:** `nazariitaran`
 - **Extension ID:** `nazariitaran.vs-codebench`
@@ -56,6 +56,7 @@ src/
 │   └── scratchpads/
 │       ├── Models.ts             # ScratchFile, ScratchpadFolder, ScratchpadData interfaces
 │       ├── ScratchpadAiTools.ts  # GitHub Copilot language model tools (9 tools)
+│       ├── ScratchpadFileSystemProvider.ts  # Custom writable provider for codebench-scratchpad URIs
 │       ├── ScratchpadService.ts
 │       ├── ScratchpadValidator.ts # Input validation (file/folder name, count limits)
 │       ├── ScratchpadCommands.ts
@@ -84,13 +85,17 @@ Each feature (`todos`, `bookmarks`, `scratchpads`) follows the same layered stru
 6. **views/** — `TreeItem` subclasses, `DragAndDropController` implementations
 7. **index.ts** — barrel file re-exporting public API
 
+Scratchpads additionally include `ScratchpadFileSystemProvider.ts`, which exposes scratchpads through the custom `codebench-scratchpad` scheme so editor-facing names stay logical while disk file names remain internal.
+
 ### Storage
 - `StorageService` wraps VS Code's `Memento` API with scope detection (`workspace` / `global` / `auto`)
 - `NamespacedStorageService` extends it with deterministic key generation: `{feature}::{workspaceUri}::{subKey}`
 - Each service creates its own namespaced storage: `createNamespacedStorage(context, 'todos')`
+- Scratchpad metadata is stored in the scratchpads namespace, while scratchpad bodies live in extension-managed backing files under `<storage>/scratchpads/`
+- Scratchpad steady-state metadata does not store file content; legacy `content` fields are migration-only input for v3 upgrades
 
 ### Extension Lifecycle
-- `activate()` creates three Providers, three TreeViews with DnD controllers, registers all feature commands, and registers GitHub Copilot tools for bookmarks/scratchpads
+- `activate()` creates three Providers, three TreeViews with DnD controllers, registers all feature commands, registers a writable `codebench-scratchpad` FileSystemProvider, and registers GitHub Copilot tools for bookmarks/scratchpads
 - `activate()` returns `{ todosProvider, bookmarksProvider, scratchpadsProvider }` for test access
 - All disposables go into `context.subscriptions`
 
@@ -147,7 +152,7 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 ## Business Rules & Limits
 - Todos: max 100 total items, max 2 levels of nesting (parent → child → grandchild), text 1–75 chars
 - Bookmarks: max 200 items, folder depth up to 3 levels, bookmark text 1–75 chars, folder name 1–75 chars
-- Scratchpads: max 200 files, folder depth up to 5 levels, file text 1–75 chars, folder name 1–75 chars
+- Scratchpads: max 400 files, folder depth up to 5 levels, file text 1–75 chars, folder name 1–75 chars
 - Bookmark colors: `default` (blue), `red`, `green`, `yellow`, `purple`
 - All commands are prefixed with `vs-codebench.`
 
@@ -170,3 +175,5 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 - When adding new commands, also update `contributes.menus` in `package.json` for proper visibility in tree views and context menus.
 - `vs-codebench.saveUnsavedAsScratchpad` is available only for `resourceScheme == 'untitled'` in the editor context menu.
 - When adding/changing Copilot tools, keep `contributes.languageModelTools` in sync with `BookmarkAiTools.ts` and `ScratchpadAiTools.ts`.
+- Scratchpad editor flows should open `codebench-scratchpad` URIs via `ScratchpadService.getScratchpadUri()` or `ScratchpadsProvider.openScratchFile()` instead of raw `file:` URIs.
+- Scratchpad folder deletion is recursive after user confirmation; do not reparent deleted folder contents back to the root.
