@@ -55,8 +55,8 @@ src/
 │   │       └── BookmarkDragAndDropController.ts
 │   └── scratchpads/
 │       ├── Models.ts             # ScratchFile, ScratchpadFolder, ScratchpadData interfaces
-│       ├── ScratchpadAiTools.ts  # GitHub Copilot language model tools (9 tools)
-│       ├── ScratchpadFileSystemProvider.ts  # Custom writable provider for codebench-scratchpad URIs
+│       ├── ScratchpadAiTools.ts  # GitHub Copilot language model tools (11 tools, folder-aware)
+│       ├── ScratchpadFileSystemProvider.ts  # Custom writable provider for codebench-scratchpad URIs; waits for provider readiness during restore/startup
 │       ├── ScratchpadService.ts
 │       ├── ScratchpadValidator.ts # Input validation (file/folder name, count limits)
 │       ├── ScratchpadCommands.ts
@@ -85,7 +85,7 @@ Each feature (`todos`, `bookmarks`, `scratchpads`) follows the same layered stru
 6. **views/** — `TreeItem` subclasses, `DragAndDropController` implementations
 7. **index.ts** — barrel file re-exporting public API
 
-Scratchpads additionally include `ScratchpadFileSystemProvider.ts`, which exposes scratchpads through the custom `codebench-scratchpad` scheme so editor-facing names stay logical while disk file names remain internal.
+Scratchpads additionally include `ScratchpadFileSystemProvider.ts`, which exposes scratchpads through the custom `codebench-scratchpad` scheme so editor-facing names stay logical while disk file names remain internal. The provider now waits for scratchpad metadata loading before serving file-system operations triggered during startup or editor restore.
 
 ### Storage
 - `StorageService` wraps VS Code's `Memento` API with scope detection (`workspace` / `global` / `auto`)
@@ -102,7 +102,9 @@ Scratchpads additionally include `ScratchpadFileSystemProvider.ts`, which expose
 ### GitHub Copilot Tools
 - Tools are contributed via `package.json` → `contributes.languageModelTools` and registered with `vscode.lm.registerTool(...)`.
 - Bookmark tools (8): `codebench_get_bookmarks`, `codebench_add_bookmark`, `codebench_move_bookmark_to_folder`, `codebench_rename_bookmark`, `codebench_set_bookmark_color`, `codebench_remove_bookmark`, `codebench_create_bookmark_folder`, `codebench_remove_bookmark_folder`.
-- Scratchpad tools (9): `codebench_get_scratchpads`, `codebench_get_scratchpad_content`, `codebench_create_scratchpad`, `codebench_update_scratchpad_content`, `codebench_rename_scratchpad`, `codebench_delete_scratchpad`, `codebench_create_scratchpad_folder`, `codebench_move_scratchpad_to_folder`, `codebench_delete_scratchpad_folder`.
+- Scratchpad tools (11): `codebench_get_scratchpads`, `codebench_get_scratchpad_content`, `codebench_create_scratchpad`, `codebench_update_scratchpad_content`, `codebench_rename_scratchpad`, `codebench_delete_scratchpad`, `codebench_create_scratchpad_folder`, `codebench_rename_scratchpad_folder`, `codebench_move_scratchpad_to_folder`, `codebench_move_scratchpad_folder`, `codebench_delete_scratchpad_folder`.
+- `codebench_get_scratchpads` defaults to root-level scratchpads when `folderId` is omitted, but it returns folder metadata and supports `includeAll: true` for workspace-wide listing.
+- Scratchpad move tools support moving scratchpads or folders back to root by omitting the destination folder id.
 - Tool outputs are JSON text payloads wrapped in `LanguageModelToolResult`.
 
 ## Build & Development Commands
@@ -170,10 +172,12 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 - The `out/` directory is gitignored build output — never edit files there.
 - When adding a new feature, follow the existing module pattern: Models → Service → Validator → Commands → Provider → views/ → index.ts barrel.
 - Storage keys are workspace-scoped by default — be careful with `'auto'` scope behavior.
-- The extension activates on `onStartupFinished` — it is always active once VS Code loads.
+- The extension activates on `onStartupFinished` and `onFileSystem:codebench-scratchpad` so restored scratchpad editors can resolve before normal startup activation completes.
 - All command IDs are defined in `package.json` under `contributes.commands` — keep them in sync with `{Feature}Commands.ts`.
 - When adding new commands, also update `contributes.menus` in `package.json` for proper visibility in tree views and context menus.
+- Scratchpad folder rows expose a dedicated `vs-codebench.createScratchpadInFolder` action for creating a new scratchpad directly inside the selected folder.
 - `vs-codebench.saveUnsavedAsScratchpad` is available only for `resourceScheme == 'untitled'` in the editor context menu.
 - When adding/changing Copilot tools, keep `contributes.languageModelTools` in sync with `BookmarkAiTools.ts` and `ScratchpadAiTools.ts`.
 - Scratchpad editor flows should open `codebench-scratchpad` URIs via `ScratchpadService.getScratchpadUri()` or `ScratchpadsProvider.openScratchFile()` instead of raw `file:` URIs.
+- Scratchpad file-system operations that can run during startup/restore should wait on `ScratchpadsProvider.whenReady()` before reading or mutating scratchpad state.
 - Scratchpad folder deletion is recursive after user confirmation; do not reparent deleted folder contents back to the root.
