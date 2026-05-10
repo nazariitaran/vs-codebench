@@ -151,6 +151,33 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
   }
 
   async deleteFolder(id: string): Promise<void> {
+    await this.deleteFolderWithConfirmation(id);
+  }
+
+  async deleteFolderForTools(id: string): Promise<void> {
+    await this.scratchpadService.deleteFolder(id);
+    this.refresh();
+  }
+
+  private async deleteFolderWithConfirmation(id: string): Promise<void> {
+    const folder = this.scratchpadService.getFolderById(id);
+    if (!folder) {
+      return;
+    }
+
+    const itemCount = this.scratchpadService.countFolderItems(id);
+    const result = await vscode.window.showWarningMessage(
+      itemCount > 0
+        ? `Are you sure you want to delete "${folder.name}"? This will delete ${itemCount} item(s) including all subfolders and scratchpads.`
+        : `Are you sure you want to delete "${folder.name}"?`,
+      { modal: true },
+      'Delete'
+    );
+
+    if (result !== 'Delete') {
+      return;
+    }
+
     await this.scratchpadService.deleteFolder(id);
     this.refresh();
   }

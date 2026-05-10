@@ -136,7 +136,7 @@ export class ScratchpadService {
     }
 
     const parentId = folder.parentId;
-    this.deleteFolderRecursive(id);
+    await this.deleteFolderRecursive(id);
 
     // Normalize order after deletion
     const siblings = this.getFolderSiblings(parentId);
@@ -146,18 +146,32 @@ export class ScratchpadService {
     await this.saveMetadata();
   }
 
-  private deleteFolderRecursive(folderId: string): void {
-    // Move all files in this folder to root (parentId = undefined)
-    this.scratchFiles.forEach(file => {
+  private async deleteFolderRecursive(folderId: string): Promise<void> {
+    // Delete all files in this folder and remove their backing files from storage.
+    for (const [fileId, file] of this.scratchFiles.entries()) {
       if (file.parentId === folderId) {
-        file.parentId = undefined;
+        const filePath = this.getFilePath(fileId);
+
+        try {
+          const exists = await fs.promises
+            .access(filePath, fs.constants.F_OK)
+            .then(() => true)
+            .catch(() => false);
+          if (exists) {
+            await fs.promises.unlink(filePath);
+          }
+        } catch (error) {
+          console.error('Failed to delete file:', error);
+        }
+
+        this.scratchFiles.delete(fileId);
       }
-    });
+    }
 
     // Recursively delete subfolders
     const subfolders = this.folders.filter(f => f.parentId === folderId);
     for (const subfolder of subfolders) {
-      this.deleteFolderRecursive(subfolder.id);
+      await this.deleteFolderRecursive(subfolder.id);
     }
 
     // Delete the folder itself
