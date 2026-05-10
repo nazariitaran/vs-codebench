@@ -118,5 +118,67 @@ suite('Scratchpads: command-driven flows', () => {
     assert.strictEqual(files[0].name.endsWith('.txt'), true, 'Unknown language should fall back to .txt');
     assert.strictEqual(files[0].content, content, 'Scratchpad should preserve untitled editor content');
   });
+
+  test('Delete scratchpad folder asks for confirmation and deletes subtree on confirm', async function () {
+    this.timeout(20000);
+    const { scratchpadsProvider } = extension.exports as any;
+    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
+
+    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
+    }
+    for (const folder of [...scratchpadsProvider.scratchpadService.getFolders()]) {
+      await scratchpadsProvider.deleteFolderForTools(folder.id);
+    }
+
+    const rootFolder = await scratchpadsProvider.addFolder('Root Folder');
+    const childFolder = await scratchpadsProvider.addFolder('Child Folder', rootFolder.id);
+    const rootFile = await scratchpadsProvider.scratchpadService.createScratchFile('root.md');
+    const childFile = await scratchpadsProvider.scratchpadService.createScratchFile('child.md');
+
+    await scratchpadsProvider.scratchpadService.moveToFolder(rootFile.id, rootFolder.id);
+    await scratchpadsProvider.scratchpadService.moveToFolder(childFile.id, childFolder.id);
+
+    let warningMessage: string | undefined;
+    stub(vscode.window, 'showWarningMessage', async (message: string) => {
+      warningMessage = message;
+      return 'Delete';
+    });
+
+    await vscode.commands.executeCommand('vs-codebench.deleteScratchpadFolder', { id: rootFolder.id });
+
+    assert.strictEqual(
+      warningMessage,
+      'Are you sure you want to delete "Root Folder"? This will delete 3 item(s) including all subfolders and scratchpads.'
+    );
+    assert.strictEqual(scratchpadsProvider.scratchpadService.getFolderById(rootFolder.id), undefined);
+    assert.strictEqual(scratchpadsProvider.scratchpadService.getFolderById(childFolder.id), undefined);
+    assert.strictEqual(scratchpadsProvider.scratchpadService.getScratchFile(rootFile.id), undefined);
+    assert.strictEqual(scratchpadsProvider.scratchpadService.getScratchFile(childFile.id), undefined);
+  });
+
+  test('Delete scratchpad folder keeps subtree when confirmation is cancelled', async function () {
+    this.timeout(20000);
+    const { scratchpadsProvider } = extension.exports as any;
+    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
+
+    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
+    }
+    for (const folder of [...scratchpadsProvider.scratchpadService.getFolders()]) {
+      await scratchpadsProvider.deleteFolderForTools(folder.id);
+    }
+
+    const folder = await scratchpadsProvider.addFolder('Keep Folder');
+    const file = await scratchpadsProvider.scratchpadService.createScratchFile('keep.md');
+    await scratchpadsProvider.scratchpadService.moveToFolder(file.id, folder.id);
+
+    stub(vscode.window, 'showWarningMessage', async () => undefined);
+
+    await vscode.commands.executeCommand('vs-codebench.deleteScratchpadFolder', { id: folder.id });
+
+    assert.ok(scratchpadsProvider.scratchpadService.getFolderById(folder.id), 'Folder should remain after cancel');
+    assert.ok(scratchpadsProvider.scratchpadService.getScratchFile(file.id), 'Contained file should remain after cancel');
+  });
 });
 

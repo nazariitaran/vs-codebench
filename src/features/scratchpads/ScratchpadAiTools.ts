@@ -286,7 +286,7 @@ class DeleteScratchpadFolderTool implements vscode.LanguageModelTool<DeleteScrat
       throw new Error('Folder not found. Provide a valid folderId.');
     }
 
-    await this.scratchpadsProvider.deleteFolder(input.folderId);
+    await this.scratchpadsProvider.deleteFolderForTools(input.folderId);
 
     return resultFromObject({
       success: true,

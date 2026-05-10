@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
 import { ScratchpadService } from '../../features/scratchpads/ScratchpadService';
 import { createMockExtensionContext } from '../testUtils';
 
@@ -78,13 +79,27 @@ suite('ScratchpadService - folders', () => {
       assert.strictEqual(service.getFolderById(gc.id), undefined);
     });
 
-    test('deleteFolder moves contained files to root', async () => {
+    test('deleteFolder removes contained files recursively', async () => {
       const folder = await service.addFolder('Folder');
       const file = await service.createScratchFile('test.txt');
       await service.moveToFolder(file.id, folder.id);
+
+      const nestedFolder = await service.addFolder('Nested', folder.id);
+      const nestedFile = await service.createScratchFile('nested.txt');
+      await service.moveToFolder(nestedFile.id, nestedFolder.id);
+
+      const rootFilePath = service.getFilePath(file.id);
+      const nestedFilePath = service.getFilePath(nestedFile.id);
+      assert.strictEqual(fs.existsSync(rootFilePath), true);
+      assert.strictEqual(fs.existsSync(nestedFilePath), true);
+
       await service.deleteFolder(folder.id);
-      const movedFile = service.getScratchFile(file.id);
-      assert.strictEqual(movedFile?.parentId, undefined);
+
+      assert.strictEqual(service.getScratchFile(file.id), undefined);
+      assert.strictEqual(service.getScratchFile(nestedFile.id), undefined);
+      assert.strictEqual(service.getFolderById(nestedFolder.id), undefined);
+      assert.strictEqual(fs.existsSync(rootFilePath), false);
+      assert.strictEqual(fs.existsSync(nestedFilePath), false);
     });
   });
 
