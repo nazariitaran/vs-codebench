@@ -150,8 +150,7 @@ export function registerScratchpadCommands(
         await scratchpadsProvider.scratchpadService.updateFileContent(summaryScratchpad.id, summaryContent);
 
         // Open the summary scratchpad
-        const doc = await vscode.workspace.openTextDocument(scratchpadsProvider.scratchpadService.getFilePath(summaryScratchpad.id));
-        await vscode.window.showTextDocument(doc);
+        await scratchpadsProvider.openScratchFile(summaryScratchpad.id);
       }
     })
   );

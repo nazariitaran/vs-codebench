@@ -1,4 +1,5 @@
 export { ScratchpadsProvider } from './ScratchpadsProvider';
+export { ScratchpadFileSystemProvider } from './ScratchpadFileSystemProvider';
 export { registerScratchpadCommands } from './ScratchpadCommands';
 export { registerScratchpadAiTools } from './ScratchpadAiTools';
 export { ScratchpadService } from './ScratchpadService';

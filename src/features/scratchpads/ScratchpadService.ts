@@ -5,6 +5,18 @@ import * as fs from 'fs';
 import { ScratchFile, ScratchpadFolder, ScratchpadData, CURRENT_SCRATCHPAD_VERSION, MAX_SCRATCH_FILES } from './Models';
 import { NamespacedStorageService, createNamespacedStorage } from '../../common/storage/StorageService';
 
+export const SCRATCHPAD_URI_SCHEME = 'codebench-scratchpad';
+
+interface LegacyScratchFile extends ScratchFile {
+  content?: string;
+}
+
+interface LegacyScratchpadData {
+  version: number;
+  files: LegacyScratchFile[];
+  folders?: ScratchpadFolder[];
+}
+
 export class ScratchpadService {
   private scratchFiles: Map<string, ScratchFile> = new Map();
   private folders: ScratchpadFolder[] = [];
@@ -35,26 +47,25 @@ export class ScratchpadService {
 
   async loadScratchFiles(): Promise<void> {
     try {
-      const data = await this.storage.retrieve<ScratchpadData>('metadata', {
+      const data = await this.storage.retrieve<LegacyScratchpadData>('metadata', {
         version: CURRENT_SCRATCHPAD_VERSION,
         files: [],
         folders: []
       }, { scope: 'auto' });
 
-      this.scratchFiles.clear();
-      this.folders = [];
+      const migrated = await this.migrateScratchpadData(data);
 
-      // v1→v2 migration: initialize parentId on existing files
-      if (data.version < 2) {
-        data.files.forEach(file => {
-          const migrated: ScratchFile = { ...file, parentId: undefined };
-          this.scratchFiles.set(file.id, migrated);
-        });
-      } else {
-        data.files.forEach(file => {
-          this.scratchFiles.set(file.id, file);
-        });
-        this.folders = data.folders || [];
+      await this.ensureBackingFilesExist(migrated.files, migrated.legacyContentById);
+
+      this.scratchFiles.clear();
+      this.folders = migrated.folders;
+
+      migrated.files.forEach(file => {
+        this.scratchFiles.set(file.id, file);
+      });
+
+      if (migrated.changed) {
+        await this.saveMetadata();
       }
     } catch (error) {
       console.error('Failed to load scratch files:', error);
@@ -150,20 +161,7 @@ export class ScratchpadService {
     // Delete all files in this folder and remove their backing files from storage.
     for (const [fileId, file] of this.scratchFiles.entries()) {
       if (file.parentId === folderId) {
-        const filePath = this.getFilePath(fileId);
-
-        try {
-          const exists = await fs.promises
-            .access(filePath, fs.constants.F_OK)
-            .then(() => true)
-            .catch(() => false);
-          if (exists) {
-            await fs.promises.unlink(filePath);
-          }
-        } catch (error) {
-          console.error('Failed to delete file:', error);
-        }
-
+        await this.deleteStoredFile(fileId);
         this.scratchFiles.delete(fileId);
       }
     }
@@ -396,18 +394,7 @@ export class ScratchpadService {
 
   async clearAll(): Promise<void> {
     for (const file of this.scratchFiles.values()) {
-      const filePath = this.getFilePath(file.id);
-      try {
-        const exists = await fs.promises
-          .access(filePath, fs.constants.F_OK)
-          .then(() => true)
-          .catch(() => false);
-        if (exists) {
-          await fs.promises.unlink(filePath);
-        }
-      } catch (error) {
-        console.error(`Failed to delete file ${filePath}:`, error);
-      }
+      await this.deleteStoredFile(file.id);
     }
 
     this.scratchFiles.clear();
@@ -432,10 +419,34 @@ export class ScratchpadService {
     return this.scratchFiles.get(id);
   }
 
+  getScratchpadIdFromUri(uri: vscode.Uri): string | undefined {
+    if (uri.scheme !== SCRATCHPAD_URI_SCHEME) {
+      return undefined;
+    }
+
+    const params = new URLSearchParams(uri.query);
+    return params.get('id') ?? undefined;
+  }
+
+  getScratchpadUri(id: string): vscode.Uri {
+    const file = this.scratchFiles.get(id);
+    if (!file) {
+      throw new Error(`Scratchpad not found for id ${id}`);
+    }
+    const virtualPath = `/${[...this.getFolderPathSegments(file.parentId), file.name].join('/')}`;
+    const params = new URLSearchParams({ id });
+
+    return vscode.Uri.from({
+      scheme: SCRATCHPAD_URI_SCHEME,
+      path: virtualPath,
+      query: params.toString()
+    });
+  }
+
   getFilePath(id: string): string {
     const file = this.scratchFiles.get(id);
     if (file) {
-      return path.join(this.scratchpadDirectory, file.name);
+      return this.getStoredFilePath(file);
     }
     // Fallback for files not yet in memory
     return path.join(this.scratchpadDirectory, `${id}.txt`);
@@ -447,7 +458,7 @@ export class ScratchpadService {
     const scratchFile: ScratchFile = {
       id,
       name: fileName,
-      content: '',
+      backingFileName: this.getCanonicalBackingFileName(id, fileName),
       language,
       parentId: parentFolderId,
       createdAt: Date.now(),
@@ -455,8 +466,8 @@ export class ScratchpadService {
       order: this.getNextOrderIndex()
     };
 
+    await this.saveFileContent(id, '', scratchFile);
     this.scratchFiles.set(id, scratchFile);
-    await this.saveFileContent(id, '');
     await this.saveMetadata();
 
     return scratchFile;
@@ -465,9 +476,9 @@ export class ScratchpadService {
   async updateFileContent(id: string, content: string): Promise<void> {
     const file = this.scratchFiles.get(id);
     if (file) {
-      file.content = content;
-      file.lastModified = Date.now();
-      await this.saveFileContent(id, content);
+      const lastModified = Date.now();
+      await this.saveFileContent(id, content, file);
+      file.lastModified = lastModified;
       await this.saveMetadata();
     }
   }
@@ -489,31 +500,8 @@ export class ScratchpadService {
       return;
     }
 
-    const oldPath = this.getFilePath(id);
     file.name = targetName;
     file.lastModified = Date.now();
-    const newPath = this.getFilePath(id);
-
-    try {
-      const exists = await fs.promises
-        .access(oldPath, fs.constants.F_OK)
-        .then(() => true)
-        .catch(() => false);
-      if (exists) {
-        // Disallow collisions
-        const newExists = await fs.promises
-          .access(newPath, fs.constants.F_OK)
-          .then(() => true)
-          .catch(() => false);
-        if (newExists) {
-          throw new Error('A scratchpad with the same name already exists');
-        }
-        await fs.promises.rename(oldPath, newPath);
-      }
-    } catch (error) {
-      console.error('Failed to rename file:', error);
-      throw error;
-    }
 
     await this.saveMetadata();
   }
@@ -550,25 +538,14 @@ export class ScratchpadService {
 
     await this.saveMetadata();
   }
+
   async deleteScratchFile(id: string): Promise<void> {
     const file = this.scratchFiles.get(id);
     if (!file) {
       return;
     }
 
-    const filePath = this.getFilePath(id);
-
-    try {
-      const exists = await fs.promises
-        .access(filePath, fs.constants.F_OK)
-        .then(() => true)
-        .catch(() => false);
-      if (exists) {
-        await fs.promises.unlink(filePath);
-      }
-    } catch (error) {
-      console.error('Failed to delete file:', error);
-    }
+    await this.deleteStoredFile(id);
 
     this.scratchFiles.delete(id);
     await this.saveMetadata();
@@ -618,13 +595,10 @@ export class ScratchpadService {
     return languageMap[extension];
   }
 
-  private async saveFileContent(id: string, content: string): Promise<void> {
-    const filePath = this.getFilePath(id);
-    try {
-      await fs.promises.writeFile(filePath, content, 'utf8');
-    } catch (error) {
-      console.error('Failed to save file content:', error);
-    }
+  private async saveFileContent(id: string, content: string, file?: Pick<ScratchFile, 'id' | 'name' | 'backingFileName'>): Promise<void> {
+    await this.ensureStorageExists();
+    const filePath = file ? this.getStoredFilePath(file) : this.getFilePath(id);
+    await fs.promises.writeFile(filePath, content, 'utf8');
   }
 
   private getNextOrderIndex(): number {
@@ -957,6 +931,134 @@ export class ScratchpadService {
     return Array.from(this.scratchFiles.values()).find(
       f => f.name === name && f.parentId === parentId
     );
+  }
+
+  private async migrateScratchpadData(data: LegacyScratchpadData): Promise<{
+    files: ScratchFile[];
+    folders: ScratchpadFolder[];
+    changed: boolean;
+    legacyContentById: Map<string, string>;
+  }> {
+    let changed = false;
+    let version = data.version;
+    const legacyContentById = new Map<string, string>();
+    let hasLegacyContent = false;
+    let files = data.files.map(file => {
+      const migratedFile = { ...file };
+      if (typeof migratedFile.content === 'string') {
+        legacyContentById.set(migratedFile.id, migratedFile.content);
+        hasLegacyContent = true;
+      }
+      return migratedFile;
+    });
+    let folders = data.folders ? [...data.folders] : [];
+
+    if (version < 2) {
+      files = files.map(file => ({ ...file, parentId: undefined }));
+      folders = [];
+      version = 2;
+      changed = true;
+    }
+
+    if (version < 3) {
+      files = this.assignBackingFileNames(files);
+      version = 3;
+      changed = true;
+    }
+
+    if (hasLegacyContent && version <= CURRENT_SCRATCHPAD_VERSION) {
+      files = files.map(({ content: _content, ...file }) => file);
+      changed = true;
+    }
+
+    return { files, folders, changed, legacyContentById };
+  }
+
+  private assignBackingFileNames(files: LegacyScratchFile[]): LegacyScratchFile[] {
+    const proposedCounts = new Map<string, number>();
+
+    for (const file of files) {
+      const proposed = file.backingFileName ?? file.name;
+      proposedCounts.set(proposed, (proposedCounts.get(proposed) ?? 0) + 1);
+    }
+
+    const usedBackingNames = new Set<string>();
+
+    return files.map(file => {
+      const proposed = file.backingFileName ?? file.name;
+      let backingFileName = proposed;
+
+      if ((proposedCounts.get(proposed) ?? 0) > 1 || usedBackingNames.has(proposed)) {
+        backingFileName = this.getCanonicalBackingFileName(file.id, file.name);
+      }
+
+      usedBackingNames.add(backingFileName);
+
+      return {
+        ...file,
+        backingFileName
+      };
+    });
+  }
+
+  private async ensureBackingFilesExist(files: ScratchFile[], legacyContentById: Map<string, string>): Promise<void> {
+    for (const file of files) {
+      const filePath = this.getStoredFilePath(file);
+      const exists = await this.fileExists(filePath);
+      if (!exists) {
+        const legacyContent = legacyContentById.get(file.id);
+        if (legacyContent === undefined) {
+          throw new Error(`Missing backing file for scratchpad ${file.id}`);
+        }
+
+        await this.saveFileContent(file.id, legacyContent, file);
+      }
+    }
+  }
+
+  private async deleteStoredFile(id: string): Promise<void> {
+    const filePath = this.getFilePath(id);
+
+    try {
+      if (await this.fileExists(filePath)) {
+        await fs.promises.unlink(filePath);
+      }
+    } catch (error) {
+      console.error(`Failed to delete file ${filePath}:`, error);
+    }
+  }
+
+  private getStoredFilePath(file: Pick<ScratchFile, 'id' | 'name' | 'backingFileName'>): string {
+    return path.join(this.scratchpadDirectory, file.backingFileName ?? file.name);
+  }
+
+  private getCanonicalBackingFileName(id: string, displayName: string): string {
+    const extension = path.extname(displayName) || '.txt';
+    return `${id}${extension}`;
+  }
+
+  private getFolderPathSegments(parentId?: string): string[] {
+    const segments: string[] = [];
+    let currentId = parentId;
+
+    while (currentId) {
+      const folder = this.getFolderById(currentId);
+      if (!folder) {
+        break;
+      }
+
+      segments.unshift(folder.name);
+      currentId = folder.parentId;
+    }
+
+    return segments;
+  }
+
+  private async fileExists(filePath: string): Promise<boolean> {
+    return fs.promises
+      .access(filePath, fs.constants.F_OK)
+      .then(() => true)
+      .catch(() => false);
   }
 }
 

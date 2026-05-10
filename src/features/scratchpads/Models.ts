@@ -3,7 +3,7 @@ export const MAX_SCRATCH_FILES = 400;
 export interface ScratchFile {
     id: string;
     name: string;
-    content: string;
+    backingFileName?: string;
     language?: string;
     createdAt: number;
     lastModified: number;
@@ -27,4 +27,4 @@ export interface ScratchpadData {
     folders?: ScratchpadFolder[];
 }
 
-export const CURRENT_SCRATCHPAD_VERSION = 2;
+export const CURRENT_SCRATCHPAD_VERSION = 3;

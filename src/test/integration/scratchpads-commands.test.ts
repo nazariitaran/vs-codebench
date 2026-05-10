@@ -56,6 +56,10 @@ suite('Scratchpads: command-driven flows', () => {
     // Open scratch file via provider API
     await scratchpadsProvider.openScratchFile(renamed.id);
 
+    const scratchpadDoc = vscode.window.activeTextEditor?.document;
+    assert.ok(scratchpadDoc, 'Scratchpad document should be opened');
+    assert.strictEqual(scratchpadDoc?.uri.scheme, 'codebench-scratchpad');
+
     // Delete directly via service to avoid modal confirm
     await scratchpadsProvider.scratchpadService.deleteScratchFile(renamed.id);
     files = scratchpadsProvider.scratchpadService.getScratchFiles();
@@ -84,7 +88,11 @@ suite('Scratchpads: command-driven flows', () => {
     assert.strictEqual(files.length, 1, 'One scratchpad should be created');
     assert.strictEqual(files[0].name.endsWith('.md'), true, 'Scratchpad should use .md extension');
     assert.strictEqual(files[0].name.startsWith('scratchpad_'), true, 'Scratchpad should keep naming convention');
-    assert.strictEqual(files[0].content, content, 'Scratchpad should preserve untitled editor content');
+    assert.strictEqual(
+      scratchpadsProvider.scratchpadService.loadFileContent(files[0].id),
+      content,
+      'Scratchpad should preserve untitled editor content'
+    );
 
     const hasUntitledTab = vscode.window.tabGroups.all
       .flatMap(group => group.tabs)
@@ -116,7 +124,11 @@ suite('Scratchpads: command-driven flows', () => {
     const files = scratchpadsProvider.scratchpadService.getScratchFiles();
     assert.strictEqual(files.length, 1, 'One scratchpad should be created');
     assert.strictEqual(files[0].name.endsWith('.txt'), true, 'Unknown language should fall back to .txt');
-    assert.strictEqual(files[0].content, content, 'Scratchpad should preserve untitled editor content');
+    assert.strictEqual(
+      scratchpadsProvider.scratchpadService.loadFileContent(files[0].id),
+      content,
+      'Scratchpad should preserve untitled editor content'
+    );
   });
 
   test('Delete scratchpad folder asks for confirmation and deletes subtree on confirm', async function () {
@@ -179,6 +191,41 @@ suite('Scratchpads: command-driven flows', () => {
 
     assert.ok(scratchpadsProvider.scratchpadService.getFolderById(folder.id), 'Folder should remain after cancel');
     assert.ok(scratchpadsProvider.scratchpadService.getScratchFile(file.id), 'Contained file should remain after cancel');
+  });
+
+  test('Opens same-named scratchpads from different folders as distinct documents', async function () {
+    this.timeout(20000);
+    const { scratchpadsProvider } = extension.exports as any;
+    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
+
+    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
+    }
+    for (const folder of [...scratchpadsProvider.scratchpadService.getFolders()]) {
+      await scratchpadsProvider.deleteFolderForTools(folder.id);
+    }
+
+    const folderA = await scratchpadsProvider.addFolder('Folder A');
+    const folderB = await scratchpadsProvider.addFolder('Folder B');
+    const first = await scratchpadsProvider.scratchpadService.createScratchFile('notes.md', 'markdown', folderA.id);
+    const second = await scratchpadsProvider.scratchpadService.createScratchFile('notes.md', 'markdown', folderB.id);
+
+    await scratchpadsProvider.scratchpadService.updateFileContent(first.id, '# A');
+    await scratchpadsProvider.scratchpadService.updateFileContent(second.id, '# B');
+
+    await scratchpadsProvider.openScratchFile(first.id);
+    const firstDoc = vscode.window.activeTextEditor?.document;
+
+    await scratchpadsProvider.openScratchFile(second.id);
+    const secondDoc = vscode.window.activeTextEditor?.document;
+
+    assert.ok(firstDoc, 'First scratchpad document should be opened');
+    assert.ok(secondDoc, 'Second scratchpad document should be opened');
+    assert.strictEqual(firstDoc?.uri.scheme, 'codebench-scratchpad');
+    assert.strictEqual(secondDoc?.uri.scheme, 'codebench-scratchpad');
+    assert.notStrictEqual(firstDoc?.uri.toString(), secondDoc?.uri.toString());
+    assert.strictEqual(firstDoc?.getText(), '# A');
+    assert.strictEqual(secondDoc?.getText(), '# B');
   });
 });
 

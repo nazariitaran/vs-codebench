@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ScratchpadService, ImportResult } from '../../features/scratchpads/ScratchpadService';
+import { createNamespacedStorage } from '../../common/storage/StorageService';
 import { createMockExtensionContext } from '../testUtils';
 
 suite('ScratchpadService - import from directory', () => {
@@ -168,9 +169,34 @@ suite('ScratchpadService - import from directory', () => {
       assert.strictEqual(result.imported, 0);
       assert.strictEqual(result.overwritten, 1);
       const updated = service.getScratchFile(existing.id)!;
-      assert.strictEqual(updated.content, 'new content');
+      assert.strictEqual(service.loadFileContent(updated.id), 'new content');
       // Should still be the same file (same ID)
       assert.strictEqual(updated.id, existing.id);
+    });
+
+    test('keeps same-named files in different folders isolated', async () => {
+      const folderA = path.join(tempDir, 'a');
+      const folderB = path.join(tempDir, 'b');
+      fs.mkdirSync(folderA, { recursive: true });
+      fs.mkdirSync(folderB, { recursive: true });
+
+      createFile(path.join(folderA, 'notes.md'), '# Folder A');
+      createFile(path.join(folderB, 'notes.md'), '# Folder B');
+
+      const result = await service.importScratchpadsFromDirectory(tempDir);
+
+      assert.strictEqual(result.imported, 2);
+      assert.strictEqual(result.overwritten, 0);
+
+      const notesFiles = service.getScratchFiles().filter(file => file.name === 'notes.md');
+      assert.strictEqual(notesFiles.length, 2);
+      assert.notStrictEqual(notesFiles[0].backingFileName, notesFiles[1].backingFileName);
+
+      const folderMap = new Map(service.getFolders().map(folder => [folder.id, folder.name]));
+      const fileByFolderName = new Map(notesFiles.map(file => [folderMap.get(file.parentId!), file]));
+
+      assert.strictEqual(service.loadFileContent(fileByFolderName.get('a')!.id), '# Folder A');
+      assert.strictEqual(service.loadFileContent(fileByFolderName.get('b')!.id), '# Folder B');
     });
 
     test('reports correct count when limit is reached', async () => {
@@ -409,6 +435,107 @@ suite('ScratchpadService - import from directory', () => {
       await service.addFolder('_import_3', undefined);
       const name = service.findNextImportFolderName();
       assert.strictEqual(name, '_import_2');
+    });
+  });
+
+  suite('migration', () => {
+    test('applies cumulative migration for long-skipped scratchpads', async () => {
+      const storage = createNamespacedStorage(mockContext, 'scratchpads');
+      await storage.store('metadata', {
+        version: 1,
+        files: [
+          {
+            id: 'legacy-a',
+            name: 'notes.md',
+            content: '# Legacy A',
+            createdAt: 1,
+            lastModified: 2,
+            order: 0
+          },
+          {
+            id: 'legacy-b',
+            name: 'notes.md',
+            content: '# Legacy B',
+            createdAt: 3,
+            lastModified: 4,
+            order: 1
+          }
+        ]
+      }, { scope: 'auto' });
+
+      service = new ScratchpadService(mockContext);
+      await service.loadScratchFiles();
+
+      const migratedFiles = service.getScratchFiles();
+      assert.strictEqual(migratedFiles.length, 2);
+      assert.strictEqual(migratedFiles.every(file => file.parentId === undefined), true);
+      assert.strictEqual(migratedFiles.every(file => !!file.backingFileName), true);
+      assert.strictEqual(new Set(migratedFiles.map(file => file.backingFileName)).size, 2);
+      assert.strictEqual(service.loadFileContent('legacy-a'), '# Legacy A');
+      assert.strictEqual(service.loadFileContent('legacy-b'), '# Legacy B');
+
+      const stored = await storage.retrieve<any>('metadata', undefined, { scope: 'auto' });
+      assert.strictEqual(stored.version, 3);
+      assert.strictEqual('content' in stored.files[0], false);
+      assert.strictEqual('content' in stored.files[1], false);
+      assert.strictEqual(fs.readFileSync(service.getFilePath('legacy-a'), 'utf8'), '# Legacy A');
+      assert.strictEqual(fs.readFileSync(service.getFilePath('legacy-b'), 'utf8'), '# Legacy B');
+    });
+
+    test('does not rewrite metadata from a newer scratchpad version', async () => {
+      const storage = createNamespacedStorage(mockContext, 'scratchpads');
+      await storage.store('metadata', {
+        version: 99,
+        files: [
+          {
+            id: 'future-file',
+            name: 'future.md',
+            content: '# Future',
+            backingFileName: 'future-storage.md',
+            createdAt: 1,
+            lastModified: 2,
+            order: 0,
+            parentId: undefined
+          }
+        ],
+        folders: []
+      }, { scope: 'auto' });
+
+      service = new ScratchpadService(mockContext);
+      await service.loadScratchFiles();
+
+      const stored = await storage.retrieve<any>('metadata', undefined, { scope: 'auto' });
+      assert.strictEqual(stored.version, 99);
+      assert.strictEqual(stored.files[0].backingFileName, 'future-storage.md');
+    });
+
+    test('strips legacy content from unreleased version 3 metadata', async () => {
+      const storage = createNamespacedStorage(mockContext, 'scratchpads');
+      await storage.store('metadata', {
+        version: 3,
+        files: [
+          {
+            id: 'dev-v3-file',
+            name: 'draft.md',
+            content: '# Draft',
+            backingFileName: 'dev-v3-file.md',
+            createdAt: 1,
+            lastModified: 2,
+            order: 0,
+            parentId: undefined
+          }
+        ],
+        folders: []
+      }, { scope: 'auto' });
+
+      service = new ScratchpadService(mockContext);
+      await service.loadScratchFiles();
+
+      assert.strictEqual(service.loadFileContent('dev-v3-file'), '# Draft');
+
+      const stored = await storage.retrieve<any>('metadata', undefined, { scope: 'auto' });
+      assert.strictEqual(stored.version, 3);
+      assert.strictEqual('content' in stored.files[0], false);
     });
   });
 });
