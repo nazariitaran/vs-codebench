@@ -361,8 +361,7 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
       return;
     }
 
-    const filePath = this.scratchpadService.getFilePath(id);
-    const uri = vscode.Uri.file(filePath);
+    const uri = this.scratchpadService.getScratchpadUri(id);
 
     const doc = await vscode.workspace.openTextDocument(uri);
     this.openDocuments.set(id, doc);
@@ -539,6 +538,15 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
   }
 
   private async onDocumentChange(event: vscode.TextDocumentChangeEvent): Promise<void> {
+    const scratchpadId = this.scratchpadService.getScratchpadIdFromUri(event.document.uri);
+    if (scratchpadId) {
+      this.openDocuments.set(scratchpadId, event.document);
+      const content = event.document.getText();
+      await this.scratchpadService.updateFileContent(scratchpadId, content);
+      this.refresh();
+      return;
+    }
+
     for (const [id, doc] of this.openDocuments) {
       if (doc.uri.toString() === event.document.uri.toString()) {
         const content = event.document.getText();
@@ -550,6 +558,12 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
   }
 
   private onDocumentClose(document: vscode.TextDocument): void {
+    const scratchpadId = this.scratchpadService.getScratchpadIdFromUri(document.uri);
+    if (scratchpadId) {
+      this.openDocuments.delete(scratchpadId);
+      return;
+    }
+
     for (const [id, doc] of this.openDocuments) {
       if (doc.uri.toString() === document.uri.toString()) {
         this.openDocuments.delete(id);

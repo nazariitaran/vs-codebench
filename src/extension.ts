@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 
 import { TodosProvider, registerTodoCommands } from './features/todos';
 import { BookmarksProvider, registerBookmarkAiTools, registerBookmarkCommands } from './features/bookmarks';
-import { ScratchpadsProvider, registerScratchpadAiTools, registerScratchpadCommands } from './features/scratchpads';
+import { ScratchpadFileSystemProvider, ScratchpadsProvider, registerScratchpadAiTools, registerScratchpadCommands } from './features/scratchpads';
+import { SCRATCHPAD_URI_SCHEME } from './features/scratchpads/ScratchpadService';
 
 import { TodoDragAndDropController } from './features/todos/views/TodoDragAndDropController';
 import { BookmarkDragAndDropController } from './features/bookmarks/views/BookmarkDragAndDropController';
@@ -12,6 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
   const todosProvider = new TodosProvider(context);
   const bookmarksProvider = new BookmarksProvider(context);
   const scratchpadsProvider = new ScratchpadsProvider(context);
+  const scratchpadFileSystemProvider = new ScratchpadFileSystemProvider(scratchpadsProvider);
 
   const todosTreeView = vscode.window.createTreeView('todosView', {
     treeDataProvider: todosProvider,
@@ -36,7 +38,15 @@ export function activate(context: vscode.ExtensionContext) {
     dragAndDropController: new ScratchpadDragAndDropController(scratchpadsProvider)
   });
 
-  context.subscriptions.push(todosTreeView, bookmarksTreeView, scratchpadsTreeView);
+  context.subscriptions.push(
+    todosTreeView,
+    bookmarksTreeView,
+    scratchpadsTreeView,
+    vscode.workspace.registerFileSystemProvider(SCRATCHPAD_URI_SCHEME, scratchpadFileSystemProvider, {
+      isCaseSensitive: true,
+      isReadonly: false
+    })
+  );
 
   context.subscriptions.push({
     dispose: () => {
