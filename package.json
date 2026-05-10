@@ -2,7 +2,7 @@
   "name": "vs-codebench",
   "displayName": "VS CodeBench",
   "description": "A productivity extension that helps you organize your tasks, code notes, and bookmarks efficiently.",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "nazariitaran",
   "icon": "icon.png",
   "engines": {

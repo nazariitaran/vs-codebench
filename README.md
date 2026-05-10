@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml)
 [![Release](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml/badge.svg)](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml)
-[![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-v1.2.0-blue)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
+[![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-v1.3.0-blue)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- [![Open VSX](https://img.shields.io/open-vsx/v/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench)
 [![Open VSX Downloads](https://img.shields.io/open-vsx/dt/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench) -->
@@ -37,11 +37,11 @@ Organise your bookmarks by folder or colour:
 ![VS CodeBench Overview](./docs/6_bookmark_organize.gif)
 
 ### Scratchpads
-Quick, persistent scratch files to capture ideas/snippets, organized into hierarchical folders.
+Quick, persistent scratch files to capture ideas and snippets, with hierarchical folders, directory import, and stable virtual scratchpad URIs that stay decoupled from backing files on disk.
 ![VS CodeBench Overview](./docs/7_scratchpads.gif)
 
 ### GitHub Copilot Tools
-Built-in tools for GitHub Copilot to read and manage CodeBench bookmarks and scratchpads directly in the current workspace.
+Built-in tools for GitHub Copilot to read and manage CodeBench bookmarks and scratchpads directly in the current workspace, including 11 scratchpad operations for content, folders, and moves.
 
 
 ## Default Keyboard Shortcuts
@@ -58,6 +58,9 @@ You can change these in File > Preferences > Keyboard Shortcuts.
 - CodeBench: Toggle Bookmark
 - CodeBench: Change Bookmark Color
 - CodeBench: Create Scratchpad
+- CodeBench: Create Scratchpad Here
+- CodeBench: New Scratchpad Folder
+- CodeBench: Import Scratchpads
 - CodeBench: Save Unsaved File as Scratchpad
 
 ## Views
@@ -78,13 +81,20 @@ You can change these in File > Preferences > Keyboard Shortcuts.
 - Scratchpads
   - File name length: 1–75 characters
   - Folder name length: 1–75 characters
-  - Folder depth: up to 5 levels deep (moving/creating beyond this is blocked)
-  - Count: up to 200 scratchpad files (hard limit); attempts beyond this are blocked
+  - Folder depth: up to 10 levels deep for moves and imports
+  - Count: up to 400 scratchpad files (hard limit); attempts beyond this are blocked
 
 ## Requirements
 - VS Code 1.101.0 or newer
 
 ## Release Notes
+
+### 1.3.0
+- Added a scratchpad import workflow that can ingest a folder tree, preserve structure, skip binary files and symlinks, overwrite matching scratchpads in place, and generate an import summary scratchpad.
+- Refactored scratchpads onto a dedicated `codebench-scratchpad` file system so logical names and folder paths stay stable even when backing files are renamed or migrated.
+- Expanded scratchpad folder workflows with create-in-folder actions, recursive folder deletion with confirmation, and cleanup of backing files when folders are removed.
+- Expanded GitHub Copilot scratchpad tools to 11 operations, including folder create/rename/move/delete, root moves, root-level and workspace-wide listing, and direct content reads/updates.
+- Increased scratchpad capacity to 400 files and expanded scratchpad folder depth handling to 10 levels for imports and moves.
 
 ### 1.2.0
 - Added hierarchical folder support for scratchpads (up to 5 levels deep).
