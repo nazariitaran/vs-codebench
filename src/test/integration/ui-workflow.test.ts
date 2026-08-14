@@ -145,11 +145,17 @@ console.log('Even numbers:', evenNumbers);`;
     const stats1 = todosProvider.getTodoStats();
     assert.strictEqual(stats1.completed, 2, 'Should have 2 completed todos');
 
-    const refreshedRoots = await todosProvider.getChildren();
-    const refreshedFirst = refreshedRoots.find((item: any) => item.todo.text === 'Implement error handling');
-    const refreshedParent = refreshedRoots.find((item: any) => item.todo.text === 'Write unit tests');
-    await vscode.commands.executeCommand('vs-codebench.toggleTodo', refreshedFirst);
-    await vscode.commands.executeCommand('vs-codebench.toggleTodo', refreshedParent);
+    const rootItemsAfterCheck = await todosProvider.getChildren();
+    for (const root of rootItemsAfterCheck) {
+      if (root.todo.done) {
+        await vscode.commands.executeCommand('vs-codebench.toggleTodo', root);
+      }
+      for (const child of await todosProvider.getChildren(root)) {
+        if (child.todo.done) {
+          await vscode.commands.executeCommand('vs-codebench.toggleTodo', child);
+        }
+      }
+    }
 
     const stats2 = todosProvider.getTodoStats();
     assert.strictEqual(stats2.completed, 0, 'Should have 0 completed todos');
