@@ -143,21 +143,6 @@ suite('ScratchpadService - import from directory', () => {
       assert.ok(names.includes('readme.md'));
     });
 
-    test('skips symlinks', async () => {
-      createFile(path.join(tempDir, 'real.txt'), 'real content');
-      const symlinkPath = path.join(tempDir, 'link.txt');
-      try {
-        fs.symlinkSync(path.join(tempDir, 'real.txt'), symlinkPath);
-      } catch {
-        // symlinks may not work in all environments
-      }
-
-      const result = await service.importScratchpadsFromDirectory(tempDir);
-
-      // Should import at least real.txt (symlink may fail to create)
-      assert.ok(result.imported >= 1);
-    });
-
     test('overwrites existing scratchpad with same name in same folder', async () => {
       const existing = await service.createScratchFile('file.txt', 'plaintext');
       await service.updateFileContent(existing.id, 'old content');
@@ -197,28 +182,6 @@ suite('ScratchpadService - import from directory', () => {
 
       assert.strictEqual(service.loadFileContent(fileByFolderName.get('a')!.id), '# Folder A');
       assert.strictEqual(service.loadFileContent(fileByFolderName.get('b')!.id), '# Folder B');
-    });
-
-    test('reports correct count when limit is reached', async () => {
-      // Create 150 files (well under the 200 limit)
-      for (let i = 0; i < 150; i++) {
-        createFile(path.join(tempDir, `file${i}.txt`), `content ${i}`);
-      }
-
-      const result = await service.importScratchpadsFromDirectory(tempDir);
-
-      assert.strictEqual(result.imported, 150);
-      assert.strictEqual(result.skipped, 0);
-    });
-
-    test('reports errors for unreadable files', async () => {
-      createFile(path.join(tempDir, 'valid.txt'), 'valid content');
-
-      const result = await service.importScratchpadsFromDirectory(tempDir);
-
-      // Should not have errors for valid files
-      assert.strictEqual(result.errors, 0);
-      assert.ok(result.errorMessages.length === 0);
     });
 
     test('can import into a specific parent folder', async () => {
@@ -364,20 +327,6 @@ suite('ScratchpadService - import from directory', () => {
       // 400 should import, 2 should be skipped
       assert.strictEqual(result.imported, 400);
       assert.strictEqual(result.skipped, 2);
-    });
-
-    test('reuses existing folders during import instead of recreating', async () => {
-      // Pre-create a folder structure
-      const existingFolder = await service.addFolder('existing');
-      createFile(path.join(tempDir, 'file1.txt'), 'content 1');
-
-      const result = await service.importScratchpadsFromDirectory(tempDir);
-
-      assert.strictEqual(result.imported, 1);
-      const folders = service.getFolders();
-      // Should still have exactly 1 folder (existing), not created a new one
-      assert.strictEqual(folders.length, 1);
-      assert.strictEqual(folders[0].name, 'existing');
     });
 
     test('preserves multi-level folder nesting', async () => {

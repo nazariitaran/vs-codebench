@@ -1,7 +1,9 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { TodoDragAndDropController } from '../../features/todos/views/TodoDragAndDropController';
+import { TodoTreeItem } from '../../features/todos/views/TodoTreeItem';
 
-suite('Todos: drag-and-drop', () => {
+suite('Todos: drag-and-drop controller', () => {
   let extension: vscode.Extension<any>;
 
   suiteSetup(async function () {
@@ -12,52 +14,29 @@ suite('Todos: drag-and-drop', () => {
     }
   });
 
-  test('reorder siblings and change parent via provider APIs', async function () {
+  test('handleDrop reorders siblings onto the drop target', async function () {
     this.timeout(20000);
     const { todosProvider } = extension.exports as any;
 
-    // Clean existing todos
     for (const t of [...todosProvider.getTodos()]) {
       await todosProvider.deleteTodo(t.id);
     }
 
-    // Create structure: A, B, C; and B1 as child of B
     await todosProvider.addTodo('A');
     await todosProvider.addTodo('B');
     await todosProvider.addTodo('C');
     const root = todosProvider.getTodos().filter((t: any) => !t.parentId);
-    const A = root.find((t: any) => t.text === 'A');
     const B = root.find((t: any) => t.text === 'B');
     const C = root.find((t: any) => t.text === 'C');
 
-    await todosProvider.addTodo('B1', B.id);
+    const controller = new TodoDragAndDropController(todosProvider);
+    const transfer = new vscode.DataTransfer();
+    const token = new vscode.CancellationTokenSource().token;
 
-    // Reorder: move C before B
-    await todosProvider.reorderTodo(C.id, B.id);
+    await controller.handleDrag([new TodoTreeItem(C)], transfer, token);
+    await controller.handleDrop(new TodoTreeItem(B), transfer, token);
+
     const orderAfter = todosProvider.getTodos().filter((t: any) => !t.parentId).map((t: any) => t.text);
     assert.deepStrictEqual(orderAfter, ['A', 'C', 'B']);
-
-    // Change parent: move A under B
-    const AItem = { todo: A } as any;
-    const BItem = { todo: B } as any;
-    // Simulate by directly setting parent via service method
-    await todosProvider.addTodo('temp', A.id); // ensure A has children boundary ok (create dummy then delete)
-    const childTemp = todosProvider.getTodos().find((t: any) => t.parentId === A.id);
-    await todosProvider.deleteTodo(childTemp.id);
-    // We don't have an explicit "make child" API; emulate by deleting and re-adding under B
-    await todosProvider.deleteTodo(A.id);
-    await todosProvider.addTodo('A', B.id);
-
-    const childrenOfB = todosProvider.getTodos().filter((t: any) => t.parentId === B.id).map((t: any) => t.text);
-    assert.ok(childrenOfB.includes('A'));
-
-    // Move B1 to root by delete+readd
-    const B1 = todosProvider.getTodos().find((t: any) => t.text === 'B1');
-    await todosProvider.deleteTodo(B1.id);
-    await todosProvider.addTodo('B1');
-
-    const roots = todosProvider.getTodos().filter((t: any) => !t.parentId).map((t: any) => t.text);
-    assert.ok(roots.includes('B1'));
   });
 });
-

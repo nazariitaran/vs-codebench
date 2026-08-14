@@ -43,25 +43,24 @@ suite('Scratchpads: command-driven flows', () => {
     await vscode.commands.executeCommand('vs-codebench.createScratchpad');
 
     let files = scratchpadsProvider.scratchpadService.getScratchFiles();
-    assert.strictEqual(files.length >= 1, true, 'At least one scratchpad should exist');
+    assert.strictEqual(files.length, 1, 'One scratchpad should exist');
     const file = files[0];
 
-    // Rename directly via service to avoid UI prompts and collisions
     const uniqueName = `${file.name}.renamed`;
-    await scratchpadsProvider.scratchpadService.renameScratchFile(file.id, uniqueName);
+    stub(vscode.window, 'showInputBox', async () => uniqueName);
+    await vscode.commands.executeCommand('vs-codebench.renameScratchFile', { scratchFile: file });
 
     const renamed = scratchpadsProvider.scratchpadService.getScratchFile(file.id)!;
     assert.strictEqual(renamed.name, uniqueName);
 
-    // Open scratch file via provider API
-    await scratchpadsProvider.openScratchFile(renamed.id);
+    await vscode.commands.executeCommand('vs-codebench.openScratchFile', renamed.id);
 
     const scratchpadDoc = vscode.window.activeTextEditor?.document;
     assert.ok(scratchpadDoc, 'Scratchpad document should be opened');
     assert.strictEqual(scratchpadDoc?.uri.scheme, 'codebench-scratchpad');
 
-    // Delete directly via service to avoid modal confirm
-    await scratchpadsProvider.scratchpadService.deleteScratchFile(renamed.id);
+    stub(vscode.window, 'showWarningMessage', async () => 'Delete');
+    await vscode.commands.executeCommand('vs-codebench.deleteScratchFile', { scratchFile: renamed });
     files = scratchpadsProvider.scratchpadService.getScratchFiles();
     assert.ok(!files.find((f: any) => f.id === renamed.id), 'Scratchpad should be deleted');
   });

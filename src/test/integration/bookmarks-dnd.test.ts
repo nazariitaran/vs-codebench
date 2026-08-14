@@ -2,8 +2,11 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { BookmarkDragAndDropController } from '../../features/bookmarks/views/BookmarkDragAndDropController';
+import { BookmarkTreeItem } from '../../features/bookmarks/views/BookmarkTreeItem';
+import { BookmarkFolderTreeItem } from '../../features/bookmarks/views/BookmarkFolderTreeItem';
 
-suite('Bookmarks: drag-and-drop', () => {
+suite('Bookmarks: drag-and-drop controller', () => {
   let extension: vscode.Extension<any>;
   let workspaceFolder: string;
   let testFileUri: vscode.Uri;
@@ -35,19 +38,17 @@ suite('Bookmarks: drag-and-drop', () => {
     }
   });
 
-  test('reorder within same container and move to/from folder', async function () {
+  test('handleDrop reorders onto a bookmark and moves to/from a folder', async function () {
     this.timeout(20000);
     const { bookmarksProvider } = extension.exports as any;
 
-    // Clean state
     for (const b of [...bookmarksProvider.getAllBookmarks()]) {
       await bookmarksProvider.deleteBookmark(b.id);
     }
-    for (const f of [...bookmarksProvider.bookmarkService.getFolders()]) {
-      await bookmarksProvider.bookmarkService.deleteFolder(f.id);
+    for (const f of [...bookmarksProvider.getFolders()]) {
+      await bookmarksProvider.deleteFolder(f.id);
     }
 
-    // Create three bookmarks
     await bookmarksProvider.addBookmark(testFileUri.toString(), 0, 'A');
     await bookmarksProvider.addBookmark(testFileUri.toString(), 1, 'B');
     await bookmarksProvider.addBookmark(testFileUri.toString(), 2, 'C');
@@ -57,22 +58,39 @@ suite('Bookmarks: drag-and-drop', () => {
     const b = list.find((x: any) => x.text === 'B')!;
     const c = list.find((x: any) => x.text === 'C')!;
 
-    // Reorder: move C before B
-    await bookmarksProvider.reorderItems(c.id, b.id, 'before');
+    const controller = new BookmarkDragAndDropController(bookmarksProvider);
+    const token = new vscode.CancellationTokenSource().token;
+
+    const draggedC = new BookmarkTreeItem('C');
+    draggedC.id = c.id;
+    const targetB = new BookmarkTreeItem('B');
+    targetB.id = b.id;
+
+    const reorderTransfer = new vscode.DataTransfer();
+    await controller.handleDrag([draggedC], reorderTransfer, token);
+    await controller.handleDrop(targetB, reorderTransfer, token);
 
     list = bookmarksProvider.getAllBookmarks().filter((x: any) => !x.parentId).sort((m: any, n: any) => m.order - n.order);
     assert.deepStrictEqual(list.map((x: any) => x.text), ['A', 'C', 'B']);
 
-    // Create folder and move A, then back to root
-    const folder = await bookmarksProvider.bookmarkService.addFolder('Folder1');
-    await bookmarksProvider.moveToFolder(a.id, folder.id);
+    await bookmarksProvider.addFolder('Folder1');
+    const folder = bookmarksProvider.getFolders().find((f: any) => f.name === 'Folder1')!;
+    const folderItem = new BookmarkFolderTreeItem(folder.name, folder.id);
+
+    const draggedA = new BookmarkTreeItem('A');
+    draggedA.id = a.id;
+    const moveTransfer = new vscode.DataTransfer();
+    await controller.handleDrag([draggedA], moveTransfer, token);
+    await controller.handleDrop(folderItem, moveTransfer, token);
+
     let inFolder = bookmarksProvider.getAllBookmarks().filter((x: any) => x.parentId === folder.id);
     assert.strictEqual(inFolder.length, 1);
 
-    // Move back to root
-    await bookmarksProvider.moveToFolder(a.id, undefined);
+    const rootTransfer = new vscode.DataTransfer();
+    await controller.handleDrag([draggedA], rootTransfer, token);
+    await controller.handleDrop(undefined, rootTransfer, token);
+
     inFolder = bookmarksProvider.getAllBookmarks().filter((x: any) => x.parentId === folder.id);
     assert.strictEqual(inFolder.length, 0);
   });
 });
-

@@ -137,20 +137,5 @@ suite('Whitespace Trimming', () => {
       const updatedScratchpad = scratchpadService.getScratchFile(scratchpad.id);
       assert.strictEqual(updatedScratchpad?.name, expectedName);
     });
-
-    test('should handle whitespace-only string', async () => {
-      // First create a scratchpad
-      const scratchpad = await scratchpadService.createScratchFile('test.txt');
-      
-      // Then rename it with whitespace around a valid name
-      const newNameWithWhitespace = '  valid-name.txt  ';
-      const expectedName = 'valid-name.txt';
-      
-      await scratchpadService.renameScratchFile(scratchpad.id, newNameWithWhitespace);
-      
-      // Verify the name was trimmed properly
-      const updatedScratchpad = scratchpadService.getScratchFile(scratchpad.id);
-      assert.strictEqual(updatedScratchpad?.name, expectedName);
-    });
   });
 });

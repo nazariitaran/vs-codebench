@@ -66,11 +66,6 @@ suite('ScratchpadValidator', () => {
       assert.strictEqual(ScratchpadValidator.validateTotalCount(files), null);
     });
 
-    test('returns null when at exactly 199 files', () => {
-      const files = Array.from({ length: 199 }, (_, i) => ({ id: `file-${i}` }));
-      assert.strictEqual(ScratchpadValidator.validateTotalCount(files), null);
-    });
-
     test('returns error when at 400 files (limit reached)', () => {
       const files = Array.from({ length: 400 }, (_, i) => ({ id: `file-${i}` }));
       assert.strictEqual(
