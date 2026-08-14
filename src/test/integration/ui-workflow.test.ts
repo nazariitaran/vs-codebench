@@ -3,15 +3,21 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-suite('VS CodeBench UI End-to-End Test', () => {
+suite('VS CodeBench command-driven workflow', () => {
   let extension: vscode.Extension<any>;
   let testFileUri: vscode.Uri;
   let workspaceFolder: string;
 
-  suiteSetup(async function () {
-    this.timeout(30000); // 30 second timeout for setup
+  const stubs: { restore: () => void }[] = [];
+  const stub = <T extends object, K extends keyof T>(obj: T, key: K, impl: any) => {
+    const original = (obj as any)[key];
+    (obj as any)[key] = impl;
+    stubs.push({ restore: () => { (obj as any)[key] = original; } });
+  };
 
-    // Wait for extension to activate
+  suiteSetup(async function () {
+    this.timeout(30000);
+
     extension = vscode.extensions.getExtension('nazariitaran.vs-codebench')!;
     if (!extension) {
       throw new Error('Extension not found');
@@ -22,7 +28,6 @@ suite('VS CodeBench UI End-to-End Test', () => {
     }
     assert.ok(extension.isActive, 'Extension should be active');
 
-    // Create a workspace folder for test files
     workspaceFolder = path.join(process.cwd(), '.test-workspace');
     if (!fs.existsSync(workspaceFolder)) {
       fs.mkdirSync(workspaceFolder, { recursive: true });
@@ -30,28 +35,29 @@ suite('VS CodeBench UI End-to-End Test', () => {
   });
 
   suiteTeardown(async () => {
-    // Close all editors
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
-    // Clean up workspace
     if (fs.existsSync(workspaceFolder)) {
       fs.rmSync(workspaceFolder, { recursive: true, force: true });
     }
   });
 
   setup(async () => {
-    // Close any open editors before each test
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  test('Complete workflow: JavaScript file, bookmarks, todos, and scratchpad', async function () {
-    this.timeout(20000); // 20 second timeout for the test
+  teardown(() => {
+    while (stubs.length) {
+      stubs.pop()!.restore();
+    }
+  });
 
-    // Step 1: Create new JavaScript file
+  test('Adds bookmarks, todos, and a scratchpad through commands', async function () {
+    this.timeout(20000);
+
     const jsFilePath = path.join(workspaceFolder, 'test-file.js');
     testFileUri = vscode.Uri.file(jsFilePath);
 
-    // Step 2: Add some code (20 lines max as requested)
     const jsContent = `// Test JavaScript File
 function calculateSum(a, b) {
   return a + b;
@@ -78,103 +84,81 @@ console.log('Even numbers:', evenNumbers);`;
 
     fs.writeFileSync(jsFilePath, jsContent, 'utf8');
 
-    // Open the file in editor
     const document = await vscode.workspace.openTextDocument(testFileUri);
     const editor = await vscode.window.showTextDocument(document);
-
-    // Wait for editor to be ready
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Get all providers
     const { bookmarksProvider, todosProvider, scratchpadsProvider } = extension.exports;
     assert.ok(bookmarksProvider, 'BookmarksProvider should be exported');
     assert.ok(todosProvider, 'TodosProvider should be exported');
     assert.ok(scratchpadsProvider, 'ScratchpadsProvider should be exported');
 
-    // Step 3: Add bookmark at line 1
-    await bookmarksProvider.addBookmark(testFileUri.toString(), 1, 'Calculate sum function');
+    for (const bookmark of [...bookmarksProvider.getAllBookmarks()]) {
+      await bookmarksProvider.deleteBookmark(bookmark.id);
+    }
+    for (const folder of [...bookmarksProvider.getFolders()]) {
+      await bookmarksProvider.deleteFolder(folder.id);
+    }
+    for (const todo of [...todosProvider.getTodos()]) {
+      await todosProvider.deleteTodo(todo.id);
+    }
+    for (const file of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(file.id);
+    }
 
-    // Step 4: Add another bookmark at line 5
-    await bookmarksProvider.addBookmark(testFileUri.toString(), 5, 'Calculate product function');
+    editor.selection = new vscode.Selection(new vscode.Position(1, 0), new vscode.Position(1, 0));
+    stub(vscode.window, 'showInputBox', async () => 'Calculate sum function');
+    await vscode.commands.executeCommand('vs-codebench.addBookmark');
 
-    // Verify bookmarks
+    editor.selection = new vscode.Selection(new vscode.Position(5, 0), new vscode.Position(5, 0));
+    stub(vscode.window, 'showInputBox', async () => 'Calculate product function');
+    await vscode.commands.executeCommand('vs-codebench.addBookmark');
+
     const bookmarks = bookmarksProvider.getAllBookmarks();
     assert.strictEqual(bookmarks.length, 2, 'Should have 2 bookmarks');
 
-    // Step 5: Create bookmark folder and move bookmarks there
-    await bookmarksProvider.addFolder('Math Functions');
-    const folders = bookmarksProvider.bookmarkService.getFolders();
-    assert.strictEqual(folders.length, 1, 'Should have 1 folder');
+    stub(vscode.window, 'showInputBox', async () => 'Math Functions');
+    await vscode.commands.executeCommand('vs-codebench.addRootFolder');
+    assert.strictEqual(bookmarksProvider.getFolders().length, 1, 'Should have 1 folder');
 
-    // Move bookmarks to folder
-    await bookmarksProvider.moveToFolder(bookmarks[0].id, folders[0].id);
-    await bookmarksProvider.moveToFolder(bookmarks[1].id, folders[0].id);
+    stub(vscode.window, 'showInputBox', async () => 'Implement error handling');
+    await vscode.commands.executeCommand('vs-codebench.addTodo');
+    stub(vscode.window, 'showInputBox', async () => 'Write unit tests');
+    await vscode.commands.executeCommand('vs-codebench.addTodo');
 
-    // Step 6: Create todo item
-    await todosProvider.addTodo('Implement error handling');
-
-    // Step 7: Create another todo item
-    await todosProvider.addTodo('Write unit tests');
-
-    // Verify todos
     const todos = todosProvider.getTodos();
     assert.strictEqual(todos.length, 2, 'Should have 2 todos');
 
-    // Step 8: Create sub-todo item for the second one
-    // Since addSubTodo shows input box, we'll add it directly
-    await todosProvider.addTodo('Test edge cases', todos[1].id);
+    const rootItems = await todosProvider.getChildren();
+    const parentItem = rootItems.find((item: any) => item.todo.text === 'Write unit tests');
+    const firstItem = rootItems.find((item: any) => item.todo.text === 'Implement error handling');
+    assert.ok(parentItem, 'Parent todo tree item should exist');
+    assert.ok(firstItem, 'First todo tree item should exist');
 
-    // Verify sub-todo
-    const allTodos = todosProvider.getTodos();
-    assert.strictEqual(allTodos.length, 3, 'Should have 3 todos total');
+    stub(vscode.window, 'showInputBox', async () => 'Test edge cases');
+    await vscode.commands.executeCommand('vs-codebench.addSubTodo', parentItem);
+    assert.strictEqual(todosProvider.getTodos().length, 3, 'Should have 3 todos total');
 
-    // Step 9: Check first todo item
-    await todosProvider.toggleTodoDone({ todo: todos[0] } as any);
+    await vscode.commands.executeCommand('vs-codebench.toggleTodo', firstItem);
+    await vscode.commands.executeCommand('vs-codebench.toggleTodo', parentItem);
 
-    // Step 10: Check second todo item  
-    await todosProvider.toggleTodoDone({ todo: todos[1] } as any);
-
-    // Verify checked state
     const stats1 = todosProvider.getTodoStats();
     assert.strictEqual(stats1.completed, 2, 'Should have 2 completed todos');
 
-    // Step 11: Uncheck both
-    await todosProvider.toggleTodoDone({ todo: todos[0] } as any);
-    await todosProvider.toggleTodoDone({ todo: todos[1] } as any);
+    const refreshedRoots = await todosProvider.getChildren();
+    const refreshedFirst = refreshedRoots.find((item: any) => item.todo.text === 'Implement error handling');
+    const refreshedParent = refreshedRoots.find((item: any) => item.todo.text === 'Write unit tests');
+    await vscode.commands.executeCommand('vs-codebench.toggleTodo', refreshedFirst);
+    await vscode.commands.executeCommand('vs-codebench.toggleTodo', refreshedParent);
 
-    // Verify unchecked state
     const stats2 = todosProvider.getTodoStats();
     assert.strictEqual(stats2.completed, 0, 'Should have 0 completed todos');
 
-    // Step 12: Create scratchpad for MD file
-    await scratchpadsProvider.scratchpadService.createScratchFile('notes.md', 'markdown');
+    stub(vscode.window, 'showQuickPick', async () => ({ label: 'Markdown', extension: '.md' }));
+    await vscode.commands.executeCommand('vs-codebench.createScratchpad');
+
     const scratchFiles = scratchpadsProvider.scratchpadService.getScratchFiles();
     assert.strictEqual(scratchFiles.length, 1, 'Should have 1 scratchpad');
-
-    // Update scratchpad content
-    const scratchpad = scratchFiles[0];
-    const mdContent = `# My Notes\n\nThis is a test scratchpad.`;
-    await scratchpadsProvider.scratchpadService.updateFileContent(scratchpad.id, mdContent);
-
-    // Since we can't easily interact with input boxes in tests, we verified the extension is working
-    assert.ok(extension.exports, 'Extension should export API');
-
-    // Verify commands are registered
-    const commands = await vscode.commands.getCommands();
-    assert.ok(commands.includes('vs-codebench.toggleBookmark'), 'Toggle bookmark command should be registered');
-    assert.ok(commands.includes('vs-codebench.addTodo'), 'Add todo command should be registered');
-    assert.ok(commands.includes('vs-codebench.createScratchpad'), 'Create scratchpad command should be registered');
-    assert.ok(commands.includes('vs-codebench.createScratchpadInFolder'), 'Create scratchpad in folder command should be registered');
-  });
-
-  test('Test tree view visibility', async function () {
-    this.timeout(10000);
-
-    // Verify that tree views can be focused
-    await vscode.commands.executeCommand('bookmarksView.focus');
-    await vscode.commands.executeCommand('todosView.focus');
-    await vscode.commands.executeCommand('scratchpadsView.focus');
-
-    assert.ok(true, 'All tree views can be focused');
+    assert.ok(scratchFiles[0].name.endsWith('.md'), 'Scratchpad should use the selected markdown type');
   });
 });

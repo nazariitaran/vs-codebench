@@ -30,13 +30,11 @@ suite('Todos: command-driven flows', () => {
     const { todosProvider } = extension.exports as any;
     assert.ok(todosProvider, 'todosProvider should be available');
 
-    // Clean existing todos to avoid cross-test interference
     const existing = [...todosProvider.getTodos()];
     for (const t of existing) {
       await todosProvider.deleteTodo(t.id);
     }
 
-    // Add two todos via command
     stub(vscode.window, 'showInputBox', async () => 'Implement error handling');
     await vscode.commands.executeCommand('vs-codebench.addTodo');
     stub(vscode.window, 'showInputBox', async () => 'Write unit tests');
@@ -45,28 +43,33 @@ suite('Todos: command-driven flows', () => {
     let todos = todosProvider.getTodos();
     assert.strictEqual(todos.length, 2, 'Should have 2 todos');
 
-    // Add sub-todo to the second
-    const parent = todos[1];
-    await todosProvider.addTodo('Test edge cases', parent.id);
+    const rootItems = await todosProvider.getChildren();
+    const parentItem = rootItems.find((item: any) => item.todo.text === 'Write unit tests');
+    assert.ok(parentItem, 'Parent todo tree item should exist');
 
-    // Toggle done on parent and child via provider (commands need selection context)
-    await todosProvider.toggleTodoDone({ todo: parent } as any);
-    const child = todosProvider.getTodos().find((t: any) => t.parentId === parent.id)!;
-    await todosProvider.toggleTodoDone({ todo: child } as any);
+    stub(vscode.window, 'showInputBox', async () => 'Test edge cases');
+    await vscode.commands.executeCommand('vs-codebench.addSubTodo', parentItem);
 
-    let stats = todosProvider.getTodoStats();
-    assert.strictEqual(stats.completed >= 2, true, 'At least parent and child completed');
+    const child = todosProvider.getTodos().find((t: any) => t.parentId === parentItem.todo.id);
+    assert.ok(child, 'Sub-todo should be created via command');
 
-    // Rename parent via provider
-    await todosProvider.renameTodo(parent.id, 'Write unit tests (renamed)');
+    const childItems = await todosProvider.getChildren(parentItem);
+    const childItem = childItems.find((item: any) => item.todo.id === child.id);
+    assert.ok(childItem, 'Child todo tree item should exist');
 
-    // Delete child via provider
-    await todosProvider.deleteTodo(child.id);
+    await vscode.commands.executeCommand('vs-codebench.toggleTodo', parentItem);
+    await vscode.commands.executeCommand('vs-codebench.toggleTodo', childItem);
 
-    // Verify state
+    const stats = todosProvider.getTodoStats();
+    assert.strictEqual(stats.completed, 2, 'Parent and child should be completed');
+
+    stub(vscode.window, 'showInputBox', async () => 'Write unit tests (renamed)');
+    await vscode.commands.executeCommand('vs-codebench.editTodo', parentItem);
+
+    await vscode.commands.executeCommand('vs-codebench.deleteTodo', childItem);
+
     todos = todosProvider.getTodos();
-    assert.ok(todos.find((t: any) => t.id === parent.id && t.text.includes('(renamed)')));
+    assert.ok(todos.find((t: any) => t.id === parentItem.todo.id && t.text.includes('(renamed)')));
     assert.ok(!todos.find((t: any) => t.id === child.id));
   });
 });
-

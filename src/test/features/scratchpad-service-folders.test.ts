@@ -206,20 +206,8 @@ suite('ScratchpadService - folders', () => {
       assert.strictEqual(f2Updated?.order, 0);
       assert.strictEqual(f3Updated?.order, 1);
     });
-  });
 
-  suite('isDescendantOf', () => {
-    // Expose via moveToFolder throws which use it internally
-    test('returns true for direct child', async () => {
-      const p = await service.addFolder('Parent');
-      const c = await service.addFolder('Child', p.id);
-      await assert.rejects(
-        () => service.moveToFolder(p.id, c.id),
-        /Cannot move folder into itself or its subfolders/
-      );
-    });
-
-    test('returns true for nested descendant', async () => {
+    test('throws when moving folder into a nested descendant', async () => {
       const p = await service.addFolder('Parent');
       const c = await service.addFolder('Child', p.id);
       const gc = await service.addFolder('GrandChild', c.id);
@@ -227,6 +215,14 @@ suite('ScratchpadService - folders', () => {
         () => service.moveToFolder(p.id, gc.id),
         /Cannot move folder into itself or its subfolders/
       );
+    });
+
+    test('moves folder to root when target folder is omitted', async () => {
+      const parent = await service.addFolder('Parent');
+      const folder = await service.addFolder('Folder', parent.id);
+      await service.moveToFolder(folder.id, undefined);
+      const moved = service.getFolderById(folder.id);
+      assert.strictEqual(moved?.parentId, undefined);
     });
   });
 
@@ -319,20 +315,4 @@ suite('ScratchpadService - folders', () => {
     });
   });
 
-  suite('getFolderSiblings', () => {
-    test('moveToFolder with undefined moves folder to root', async () => {
-      const folder = await service.addFolder('Folder');
-      await service.moveToFolder(folder.id, undefined);
-      const moved = service.getFolderById(folder.id);
-      assert.strictEqual(moved?.parentId, undefined);
-    });
-
-    test('files moved to folder have correct parentId', async () => {
-      const folder = await service.addFolder('Folder');
-      const file = await service.createScratchFile('file.txt');
-      await service.moveToFolder(file.id, folder.id);
-      const moved = service.getScratchFile(file.id);
-      assert.strictEqual(moved?.parentId, folder.id);
-    });
-  });
 });

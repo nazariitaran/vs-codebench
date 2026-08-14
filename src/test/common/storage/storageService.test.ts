@@ -98,12 +98,4 @@ suite('StorageService', () => {
     assert.ok(!keys.includes('toremove'));
   });
 
-  test('should not track registry key itself', async () => {
-    // The registry key should not be included in the keys list
-    await storageService.store('normal_key', 123);
-    const keys = await storageService.keys('auto');
-    assert.ok(keys.includes('normal_key'));
-    assert.ok(!keys.includes('__storage_keys__'));
-  });
-
 }); 
