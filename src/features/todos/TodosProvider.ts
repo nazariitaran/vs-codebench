@@ -32,6 +32,10 @@ export class TodosProvider implements vscode.TreeDataProvider<TodoTreeItem> {
     return this.todoService.getTodoStats();
   }
 
+  findTodo(id: string) {
+    return this.todoService.findTodo(id);
+  }
+
   refresh(): void {
     this.updateTreeViewTitle();
     this._onDidChangeTreeData.fire();
@@ -123,7 +127,11 @@ export class TodosProvider implements vscode.TreeDataProvider<TodoTreeItem> {
   }
 
   async toggleTodoDone(todoItem: TodoTreeItem): Promise<void> {
-    await this.todoService.toggleTodo(todoItem.todo.id);
+    await this.toggleTodoById(todoItem.todo.id);
+  }
+
+  async toggleTodoById(id: string): Promise<void> {
+    await this.todoService.toggleTodo(id);
     this.refresh();
   }
 
