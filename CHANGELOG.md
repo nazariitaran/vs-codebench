@@ -1,3 +1,9 @@
+# Unreleased
+
+- Fixed "Save Unsaved File as Scratchpad" prompting to save the untitled editor by discarding its buffer before close and opening the new scratchpad automatically.
+
+---
+
 # 1.3.0 - May 2026
 
 - Added a scratchpad import workflow that can ingest a folder tree, preserve structure, skip binary files and symlinks, overwrite matching scratchpads in place, and generate an import summary scratchpad.
