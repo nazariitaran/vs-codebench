@@ -30,6 +30,7 @@ src/
 │       ├── idUtils.ts            # RFC 4122 v4 IDs via node:crypto.randomUUID
 │       └── themeUtils.ts         # Dark/light theme detection helper
 ├── features/
+│   ├── ai/                       # Copilot LM tools + Cursor MCP/plugin adapters
 │   ├── todos/
 │   │   ├── Models.ts             # Todo, TodoData, TodoStats interfaces
 │   │   ├── TodoService.ts        # CRUD, reorder, persistence logic
@@ -43,7 +44,6 @@ src/
 │   │       └── TodoProgressPanel.ts   # Webview stats panel
 │   ├── bookmarks/
 │   │   ├── Models.ts             # Bookmark, BookmarkFolder, color types/constants
-│   │   ├── BookmarkAiTools.ts    # GitHub Copilot language model tools (bookmark CRUD/folders/colors)
 │   │   ├── BookmarkService.ts    # CRUD, folder management, persistence
 │   │   ├── BookmarkValidator.ts  # Validation (text, folder name, count limits)
 │   │   ├── BookmarkCommands.ts
@@ -56,7 +56,6 @@ src/
 │   │       └── BookmarkDragAndDropController.ts
 │   └── scratchpads/
 │       ├── Models.ts             # ScratchFile, ScratchpadFolder, ScratchpadData interfaces
-│       ├── ScratchpadAiTools.ts  # GitHub Copilot language model tools (11 tools, folder-aware)
 │       ├── ScratchpadFileSystemProvider.ts  # Custom writable provider for codebench-scratchpad URIs; waits for provider readiness during restore/startup
 │       ├── ScratchpadService.ts
 │       ├── ScratchpadValidator.ts # Input validation (file/folder name, count limits)
@@ -96,17 +95,25 @@ Scratchpads additionally include `ScratchpadFileSystemProvider.ts`, which expose
 - Scratchpad steady-state metadata does not store file content; legacy `content` fields are migration-only input for v3 upgrades
 
 ### Extension Lifecycle
-- `activate()` creates three Providers, three TreeViews with DnD controllers, registers all feature commands, registers a writable `codebench-scratchpad` FileSystemProvider, and registers GitHub Copilot tools for bookmarks/scratchpads
+- `activate()` creates three Providers, three TreeViews with DnD controllers, registers all feature commands, registers a writable `codebench-scratchpad` FileSystemProvider, and registers AI integrations (Copilot language model tools when available, plus Cursor MCP/plugin support)
 - `activate()` returns `{ todosProvider, bookmarksProvider, scratchpadsProvider }` for test access
 - All disposables go into `context.subscriptions`
 
 ### GitHub Copilot Tools
-- Tools are contributed via `package.json` → `contributes.languageModelTools` and registered with `vscode.lm.registerTool(...)`.
+- Shared handlers live in `src/features/ai/` and are registered from `registerAiIntegrations()`.
+- Tools are contributed via `package.json` → `contributes.languageModelTools` and registered with `vscode.lm.registerTool(...)` only when that API exists.
+- Todo tools (5): `codebench_get_todos`, `codebench_add_todo`, `codebench_toggle_todo`, `codebench_rename_todo`, `codebench_remove_todo`.
 - Bookmark tools (8): `codebench_get_bookmarks`, `codebench_add_bookmark`, `codebench_move_bookmark_to_folder`, `codebench_rename_bookmark`, `codebench_set_bookmark_color`, `codebench_remove_bookmark`, `codebench_create_bookmark_folder`, `codebench_remove_bookmark_folder`.
 - Scratchpad tools (11): `codebench_get_scratchpads`, `codebench_get_scratchpad_content`, `codebench_create_scratchpad`, `codebench_update_scratchpad_content`, `codebench_rename_scratchpad`, `codebench_delete_scratchpad`, `codebench_create_scratchpad_folder`, `codebench_rename_scratchpad_folder`, `codebench_move_scratchpad_to_folder`, `codebench_move_scratchpad_folder`, `codebench_delete_scratchpad_folder`.
 - `codebench_get_scratchpads` defaults to root-level scratchpads when `folderId` is omitted, but it returns folder metadata and supports `includeAll: true` for workspace-wide listing.
 - Scratchpad move tools support moving scratchpads or folders back to root by omitting the destination folder id.
 - Tool outputs are JSON text payloads wrapped in `LanguageModelToolResult`.
+
+### Cursor
+- Cursor does not honor `vscode.lm.registerTool`. Agent tools are exposed through an in-process HTTP MCP server registered with `vscode.cursor.mcp.registerServer` when that API exists.
+- The MCP server listens on `127.0.0.1` and requires a bearer token that is passed via Cursor MCP headers.
+- A bundled plugin at `cursor-plugin/` (skill `codebench`) is registered with `vscode.cursor.plugins.registerPath`.
+- Publish the same extension ID to Open VSX for Cursor marketplace discovery. Cloud Agents do not run the local extension host.
 
 ## Build & Development Commands
 ```sh
@@ -178,7 +185,7 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 - When adding new commands, also update `contributes.menus` in `package.json` for proper visibility in tree views and context menus.
 - Scratchpad folder rows expose a dedicated `vs-codebench.createScratchpadInFolder` action for creating a new scratchpad directly inside the selected folder.
 - `vs-codebench.saveUnsavedAsScratchpad` is available only for `resourceScheme == 'untitled'` in the editor context menu.
-- When adding/changing Copilot tools, keep `contributes.languageModelTools` in sync with `BookmarkAiTools.ts` and `ScratchpadAiTools.ts`.
+- When adding/changing Copilot or Cursor MCP tools, keep `contributes.languageModelTools` in sync with `src/features/ai/toolCatalog.ts`.
 - Scratchpad editor flows should open `codebench-scratchpad` URIs via `ScratchpadService.getScratchpadUri()` or `ScratchpadsProvider.openScratchFile()` instead of raw `file:` URIs.
 - Scratchpad file-system operations that can run during startup/restore should wait on `ScratchpadsProvider.whenReady()` before reading or mutating scratchpad state.
 - Scratchpad folder deletion is recursive after user confirmation; do not reparent deleted folder contents back to the root.

@@ -18,7 +18,7 @@
     "bookmarks",
     "notes",
     "scratchpad",
-    "organization",
+    "cursor",
     "utilities"
   ],
   "galleryBanner": {
@@ -231,6 +231,112 @@
       }
     ],
     "languageModelTools": [
+      {
+        "name": "codebench_get_todos",
+        "displayName": "Get Todos",
+        "userDescription": "Read todos from VS CodeBench.",
+        "modelDescription": "Get VS CodeBench todos and completion stats for the current workspace. Use this before todo mutations when you need todoId values.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-todos",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "includeCompleted": {
+              "type": "boolean",
+              "description": "When false, omit completed todos. Defaults to true."
+            },
+            "parentId": {
+              "type": "string",
+              "description": "Optional parent todo ID to list only that todo's children."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_add_todo",
+        "displayName": "Add Todo",
+        "userDescription": "Create a todo in VS CodeBench.",
+        "modelDescription": "Create a VS CodeBench todo at root or as a sub-todo. Text is 1-75 characters. Nesting is limited to 2 levels below a root todo.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-add-todo",
+        "inputSchema": {
+          "type": "object",
+          "required": ["text"],
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "Todo text (1-75 characters)."
+            },
+            "parentId": {
+              "type": "string",
+              "description": "Optional parent todo ID to create a sub-todo."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_toggle_todo",
+        "displayName": "Toggle Todo",
+        "userDescription": "Toggle a todo completed state in VS CodeBench.",
+        "modelDescription": "Toggle the completed state of a VS CodeBench todo by todoId.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-toggle-todo",
+        "inputSchema": {
+          "type": "object",
+          "required": ["todoId"],
+          "properties": {
+            "todoId": {
+              "type": "string",
+              "description": "ID of todo to toggle."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_rename_todo",
+        "displayName": "Rename Todo",
+        "userDescription": "Rename an existing todo.",
+        "modelDescription": "Update the text of a VS CodeBench todo by todoId.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-rename-todo",
+        "inputSchema": {
+          "type": "object",
+          "required": ["todoId", "text"],
+          "properties": {
+            "todoId": {
+              "type": "string",
+              "description": "ID of todo to rename."
+            },
+            "text": {
+              "type": "string",
+              "description": "New todo text (1-75 characters)."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "codebench_remove_todo",
+        "displayName": "Remove Todo",
+        "userDescription": "Delete a todo from VS CodeBench.",
+        "modelDescription": "Delete a VS CodeBench todo by todoId. Nested children are also removed.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "codebench-remove-todo",
+        "inputSchema": {
+          "type": "object",
+          "required": ["todoId"],
+          "properties": {
+            "todoId": {
+              "type": "string",
+              "description": "ID of todo to delete."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
       {
         "name": "codebench_get_bookmarks",
         "displayName": "Get Bookmarks",

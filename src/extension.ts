@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 
 import { TodosProvider, registerTodoCommands } from './features/todos';
-import { BookmarksProvider, registerBookmarkAiTools, registerBookmarkCommands } from './features/bookmarks';
-import { ScratchpadFileSystemProvider, ScratchpadsProvider, registerScratchpadAiTools, registerScratchpadCommands } from './features/scratchpads';
+import { BookmarksProvider, registerBookmarkCommands } from './features/bookmarks';
+import { ScratchpadFileSystemProvider, ScratchpadsProvider, registerScratchpadCommands } from './features/scratchpads';
 import { SCRATCHPAD_URI_SCHEME } from './features/scratchpads/ScratchpadService';
+import { registerAiIntegrations } from './features/ai';
 
 import { TodoDragAndDropController } from './features/todos/views/TodoDragAndDropController';
 import { BookmarkDragAndDropController } from './features/bookmarks/views/BookmarkDragAndDropController';
@@ -59,8 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
   registerTodoCommands(context, todosProvider);
   registerBookmarkCommands(context, bookmarksProvider);
   registerScratchpadCommands(context, scratchpadsProvider);
-  registerBookmarkAiTools(context, bookmarksProvider);
-  registerScratchpadAiTools(context, scratchpadsProvider);
+  registerAiIntegrations(context, todosProvider, bookmarksProvider, scratchpadsProvider);
 
   return {
     todosProvider,

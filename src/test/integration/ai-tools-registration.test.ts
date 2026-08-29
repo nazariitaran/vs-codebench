@@ -33,6 +33,11 @@ suite('AI tools registration', () => {
     this.timeout(20000);
 
     const expectedTools = [
+      'codebench_get_todos',
+      'codebench_add_todo',
+      'codebench_toggle_todo',
+      'codebench_rename_todo',
+      'codebench_remove_todo',
       'codebench_get_bookmarks',
       'codebench_add_bookmark',
       'codebench_move_bookmark_to_folder',
@@ -94,6 +99,37 @@ suite('AI tools registration', () => {
     assert.ok(
       payload.bookmarks.some((bookmark: any) => bookmark.fileUri === fileUri.toString()),
       'Payload should include bookmarks for the target file'
+    );
+  });
+
+  test('invokes add todo and get todos tools', async function () {
+    this.timeout(20000);
+
+    const { todosProvider } = extension.exports as any;
+    assert.ok(todosProvider, 'todosProvider should be available');
+
+    const result = await vscode.lm.invokeTool('codebench_add_todo', {
+      input: { text: 'AI Tool Smoke Todo' },
+      toolInvocationToken: undefined
+    });
+
+    const textPart = result.content.find(part => part instanceof vscode.LanguageModelTextPart) as vscode.LanguageModelTextPart | undefined;
+    assert.ok(textPart, 'Tool result should include a text part');
+
+    const payload = JSON.parse(textPart.value);
+    assert.strictEqual(payload.success, true);
+    assert.ok(payload.todo?.id, 'Created todo should include an id');
+
+    const listed = await vscode.lm.invokeTool('codebench_get_todos', {
+      input: {},
+      toolInvocationToken: undefined
+    });
+    const listedPart = listed.content.find(part => part instanceof vscode.LanguageModelTextPart) as vscode.LanguageModelTextPart | undefined;
+    assert.ok(listedPart, 'Get todos result should include a text part');
+    const listedPayload = JSON.parse(listedPart.value);
+    assert.ok(
+      listedPayload.todos.some((todo: any) => todo.id === payload.todo.id),
+      'Get todos should include the created todo'
     );
   });
 });

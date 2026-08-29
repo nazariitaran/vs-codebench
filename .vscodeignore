@@ -40,4 +40,5 @@ Thumbs.db
 # - LICENSE (legal info)
 # - icon.png (extension icon)
 # - media/** (required assets)
+# - cursor-plugin/** (Cursor Agent skill)
 !out/extension.js
