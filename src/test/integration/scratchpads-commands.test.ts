@@ -100,6 +100,12 @@ suite('Scratchpads: command-driven flows', () => {
         return input.uri?.toString() === untitledDoc.uri.toString();
       });
     assert.strictEqual(hasUntitledTab, false, 'Untitled source editor should be closed after save');
+    assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed without a save prompt');
+
+    const activeDoc = vscode.window.activeTextEditor?.document;
+    assert.ok(activeDoc, 'Scratchpad should be opened automatically');
+    assert.strictEqual(activeDoc?.uri.scheme, 'codebench-scratchpad');
+    assert.strictEqual(activeDoc?.getText(), content, 'Opened scratchpad should show the original untitled content');
   });
 
   test('Falls back to .txt when language has no mapping', async function () {
@@ -128,6 +134,20 @@ suite('Scratchpads: command-driven flows', () => {
       content,
       'Scratchpad should preserve untitled editor content'
     );
+
+    const hasUntitledTab = vscode.window.tabGroups.all
+      .flatMap(group => group.tabs)
+      .some(tab => {
+        const input = tab.input as { uri?: vscode.Uri };
+        return input.uri?.toString() === untitledDoc.uri.toString();
+      });
+    assert.strictEqual(hasUntitledTab, false, 'Untitled source editor should be closed after save');
+    assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed without a save prompt');
+
+    const activeDoc = vscode.window.activeTextEditor?.document;
+    assert.ok(activeDoc, 'Scratchpad should be opened automatically');
+    assert.strictEqual(activeDoc?.uri.scheme, 'codebench-scratchpad');
+    assert.strictEqual(activeDoc?.getText(), content, 'Opened scratchpad should show the original untitled content');
   });
 
   test('Delete scratchpad folder asks for confirmation and deletes subtree on confirm', async function () {
