@@ -5,19 +5,21 @@ import { tabInputUri } from '../../features/scratchpads/tabUtils';
 async function createUntitledEditorWithContent(content: string, language: string): Promise<vscode.TextDocument> {
   await vscode.commands.executeCommand('workbench.action.files.newUntitledFile');
 
-  const editor = vscode.window.activeTextEditor;
+  let editor = vscode.window.activeTextEditor;
   assert.ok(editor, 'New untitled editor should be active');
   assert.strictEqual(editor.document.uri.scheme, 'untitled');
 
-  const typed = await editor.edit(editBuilder => {
-    editBuilder.insert(new vscode.Position(0, 0), content);
-  });
-  assert.ok(typed, 'Untitled editor should accept typed content');
-
   if (editor.document.languageId !== language) {
-    await vscode.languages.setTextDocumentLanguage(editor.document, language);
+    const languageDoc = await vscode.languages.setTextDocumentLanguage(editor.document, language);
+    editor = await vscode.window.showTextDocument(languageDoc, { preview: false, preserveFocus: false });
   }
 
+  await vscode.commands.executeCommand('type', { text: content });
+
+  assert.ok(
+    editor.document.getText().includes(content),
+    'Untitled editor should contain the typed content'
+  );
   assert.ok(editor.document.isDirty, 'Untitled editor should be dirty after typing');
   return editor.document;
 }
@@ -133,7 +135,7 @@ suite('Scratchpads: command-driven flows', () => {
     }
 
     const content = 'temp data';
-    const untitledDoc = await createUntitledEditorWithContent(content, 'mermaid');
+    const untitledDoc = await createUntitledEditorWithContent(content, 'lua');
     const expectedContent = untitledDoc.getText();
 
     await vscode.commands.executeCommand('vs-codebench.saveUnsavedAsScratchpad');
