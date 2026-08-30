@@ -1,7 +1,7 @@
 import { Bookmark, BookmarkFolder, BookmarkData, CURRENT_BOOKMARK_VERSION } from './Models';
 import { NamespacedStorageService, createNamespacedStorage } from '../../common/storage/StorageService';
 import * as vscode from 'vscode';
-import { v4 as uuidv4 } from 'uuid';
+import { randomId } from '../../common/utils/idUtils';
 
 export class BookmarkService {
   private bookmarks: Bookmark[] = [];
@@ -52,7 +52,7 @@ export class BookmarkService {
       : -1;
     
     const newBookmark: Bookmark = {
-      id: uuidv4(),
+      id: randomId(),
       fileUri,
       line,
       text: text.trim(),
@@ -129,7 +129,7 @@ export class BookmarkService {
       : -1;
     
     const newFolder: BookmarkFolder = {
-      id: uuidv4(),
+      id: randomId(),
       name: name.trim(),
       parentId,
       createdAt: Date.now(),

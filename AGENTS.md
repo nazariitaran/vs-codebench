@@ -16,7 +16,7 @@ VS CodeBench is a VS Code extension (TypeScript) that provides three productivit
 - **Test framework:** Mocha (via `@vscode/test-cli` + `@vscode/test-electron`)
 - **Package manager:** npm (lockfile: `package-lock.json`)
 - **Node version:** 22.x (CI)
-- **Runtime dependency:** `uuid` (v4 for generating IDs)
+- **Runtime dependencies:** none
 
 ## Repository Structure
 ```
@@ -27,6 +27,7 @@ src/
 │   │   ├── StorageService.ts     # Generic + namespaced storage over VS Code Memento API
 │   │   └── index.ts
 │   └── utils/
+│       ├── idUtils.ts            # RFC 4122 v4 IDs via node:crypto.randomUUID
 │       └── themeUtils.ts         # Dark/light theme detection helper
 ├── features/
 │   ├── todos/
@@ -149,7 +150,7 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 - **Path aliases:** `@/*` → `src/*`, `@common/*` → `src/common/*`, `@features/*` → `src/features/*` (configured in both `tsconfig.json` and `esbuild.js`)
 - **Validators** are classes with static methods returning `string | null`
 - **Default exports** are used only for Validators; everything else uses named exports via barrel files
-- **IDs** are generated with `uuid` v4
+- **IDs** are generated with `randomId()` (`node:crypto.randomUUID`)
 
 ## Business Rules & Limits
 - Todos: max 100 total items, max 2 levels of nesting (parent → child → grandchild), text 1–75 chars
