@@ -3,9 +3,8 @@
 [![CI](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml)
 [![Release](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml/badge.svg)](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml)
 [![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-v1.3.0-blue)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
+[![Open VSX](https://img.shields.io/open-vsx/v/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-<!-- [![Open VSX](https://img.shields.io/open-vsx/v/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench)
-[![Open VSX Downloads](https://img.shields.io/open-vsx/dt/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench) -->
 
 A focused productivity extension that brings together hierarchical todos, bookmarks, and persistent scratchpads — all in one dedicated CodeBench view.
 
@@ -41,8 +40,12 @@ Quick, persistent scratch files to capture ideas and snippets, with hierarchical
 ![VS CodeBench Overview](./docs/7_scratchpads.gif)
 
 ### GitHub Copilot Tools
-Built-in tools for GitHub Copilot to read and manage CodeBench bookmarks and scratchpads directly in the current workspace, including 11 scratchpad operations for content, folders, and moves.
+Built-in tools for GitHub Copilot to read and manage CodeBench todos, bookmarks, and scratchpads directly in the current workspace.
 
+### Cursor
+The sidebar, commands, bookmarks, and scratchpads work in Cursor the same way they do in VS Code. Cursor’s Extensions panel uses Open VSX, so install from [Open VSX](https://open-vsx.org/extension/nazariitaran/vs-codebench), import from VS Code, or use **Extensions: Install from VSIX**.
+
+Cursor Agent does not use the GitHub Copilot language-model tools API. In Cursor, CodeBench registers a local MCP server (`vs-codebench`) that exposes the same todo, bookmark, and scratchpad operations, plus a bundled skill that tells Agent when to use them. Cloud Agents do not load local extensions, so they cannot see live CodeBench state unless a matching HTTP MCP server is configured in the Cloud Agents dashboard.
 
 ## Default Keyboard Shortcuts
 - Add Todo: Ctrl+Alt+T (macOS: ⌘⌥T)
@@ -85,7 +88,7 @@ You can change these in File > Preferences > Keyboard Shortcuts.
   - Count: up to 400 scratchpad files (hard limit); attempts beyond this are blocked
 
 ## Requirements
-- VS Code 1.101.0 or newer
+- VS Code 1.101.0 or newer, or a VS Code-compatible editor such as Cursor
 
 ## Release Notes
 
