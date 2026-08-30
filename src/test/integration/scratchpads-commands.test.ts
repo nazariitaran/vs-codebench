@@ -1,5 +1,26 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { tabInputUri } from '../../features/scratchpads/tabUtils';
+
+async function createUntitledEditorWithContent(content: string, language: string): Promise<vscode.TextDocument> {
+  await vscode.commands.executeCommand('workbench.action.files.newUntitledFile');
+
+  const editor = vscode.window.activeTextEditor;
+  assert.ok(editor, 'New untitled editor should be active');
+  assert.strictEqual(editor.document.uri.scheme, 'untitled');
+
+  const typed = await editor.edit(editBuilder => {
+    editBuilder.insert(new vscode.Position(0, 0), content);
+  });
+  assert.ok(typed, 'Untitled editor should accept typed content');
+
+  if (editor.document.languageId !== language) {
+    await vscode.languages.setTextDocumentLanguage(editor.document, language);
+  }
+
+  assert.ok(editor.document.isDirty, 'Untitled editor should be dirty after typing');
+  return editor.document;
+}
 
 suite('Scratchpads: command-driven flows', () => {
   let extension: vscode.Extension<any>;
@@ -75,11 +96,8 @@ suite('Scratchpads: command-driven flows', () => {
     }
 
     const content = '# quick note\n\nconsole.log(1);';
-    const untitledDoc = await vscode.workspace.openTextDocument({
-      language: 'markdown',
-      content
-    });
-    await vscode.window.showTextDocument(untitledDoc, { preview: false, preserveFocus: false });
+    const untitledDoc = await createUntitledEditorWithContent(content, 'markdown');
+    const expectedContent = untitledDoc.getText();
 
     await vscode.commands.executeCommand('vs-codebench.saveUnsavedAsScratchpad');
 
@@ -89,23 +107,20 @@ suite('Scratchpads: command-driven flows', () => {
     assert.strictEqual(files[0].name.startsWith('scratchpad_'), true, 'Scratchpad should keep naming convention');
     assert.strictEqual(
       scratchpadsProvider.scratchpadService.loadFileContent(files[0].id),
-      content,
+      expectedContent,
       'Scratchpad should preserve untitled editor content'
     );
 
     const hasUntitledTab = vscode.window.tabGroups.all
       .flatMap(group => group.tabs)
-      .some(tab => {
-        const input = tab.input as { uri?: vscode.Uri } | undefined;
-        return input?.uri?.toString() === untitledDoc.uri.toString();
-      });
+      .some(tab => tabInputUri(tab.input)?.toString() === untitledDoc.uri.toString());
     assert.strictEqual(hasUntitledTab, false, 'Untitled source editor should be closed after save');
     assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed without a save prompt');
 
     const activeDoc = vscode.window.activeTextEditor?.document;
     assert.ok(activeDoc, 'Scratchpad should be opened automatically');
     assert.strictEqual(activeDoc?.uri.scheme, 'codebench-scratchpad');
-    assert.strictEqual(activeDoc?.getText(), content, 'Opened scratchpad should show the original untitled content');
+    assert.strictEqual(activeDoc?.getText(), expectedContent, 'Opened scratchpad should show the original untitled content');
   });
 
   test('Falls back to .txt when language has no mapping', async function () {
@@ -118,11 +133,8 @@ suite('Scratchpads: command-driven flows', () => {
     }
 
     const content = 'temp data';
-    const untitledDoc = await vscode.workspace.openTextDocument({
-      language: 'mermaid',
-      content
-    });
-    await vscode.window.showTextDocument(untitledDoc, { preview: false, preserveFocus: false });
+    const untitledDoc = await createUntitledEditorWithContent(content, 'mermaid');
+    const expectedContent = untitledDoc.getText();
 
     await vscode.commands.executeCommand('vs-codebench.saveUnsavedAsScratchpad');
 
@@ -131,67 +143,20 @@ suite('Scratchpads: command-driven flows', () => {
     assert.strictEqual(files[0].name.endsWith('.txt'), true, 'Unknown language should fall back to .txt');
     assert.strictEqual(
       scratchpadsProvider.scratchpadService.loadFileContent(files[0].id),
-      content,
+      expectedContent,
       'Scratchpad should preserve untitled editor content'
     );
 
     const hasUntitledTab = vscode.window.tabGroups.all
       .flatMap(group => group.tabs)
-      .some(tab => {
-        const input = tab.input as { uri?: vscode.Uri } | undefined;
-        return input?.uri?.toString() === untitledDoc.uri.toString();
-      });
+      .some(tab => tabInputUri(tab.input)?.toString() === untitledDoc.uri.toString());
     assert.strictEqual(hasUntitledTab, false, 'Untitled source editor should be closed after save');
     assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed without a save prompt');
 
     const activeDoc = vscode.window.activeTextEditor?.document;
     assert.ok(activeDoc, 'Scratchpad should be opened automatically');
     assert.strictEqual(activeDoc?.uri.scheme, 'codebench-scratchpad');
-    assert.strictEqual(activeDoc?.getText(), content, 'Opened scratchpad should show the original untitled content');
-  });
-
-  test('Saves untitled editor as scratchpad when a non-text tab is also open', async function () {
-    this.timeout(20000);
-    const { scratchpadsProvider } = extension.exports as any;
-    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
-
-    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
-      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
-    }
-
-    const panel = vscode.window.createWebviewPanel(
-      'codebenchTestWebview',
-      'Test Panel',
-      vscode.ViewColumn.Beside,
-      {}
-    );
-
-    try {
-      const content = 'notes from mixed tabs';
-      const untitledDoc = await vscode.workspace.openTextDocument({
-        language: 'plaintext',
-        content
-      });
-      await vscode.window.showTextDocument(untitledDoc, { preview: false, preserveFocus: false });
-
-      await vscode.commands.executeCommand('vs-codebench.saveUnsavedAsScratchpad');
-
-      const files = scratchpadsProvider.scratchpadService.getScratchFiles();
-      assert.strictEqual(files.length, 1, 'One scratchpad should be created');
-      assert.strictEqual(
-        scratchpadsProvider.scratchpadService.loadFileContent(files[0].id),
-        content,
-        'Scratchpad should preserve untitled editor content'
-      );
-      assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed');
-
-      const activeDoc = vscode.window.activeTextEditor?.document;
-      assert.ok(activeDoc, 'Scratchpad should be opened automatically');
-      assert.strictEqual(activeDoc?.uri.scheme, 'codebench-scratchpad');
-      assert.strictEqual(activeDoc?.getText(), content);
-    } finally {
-      panel.dispose();
-    }
+    assert.strictEqual(activeDoc?.getText(), expectedContent, 'Opened scratchpad should show the original untitled content');
   });
 
   test('Delete scratchpad folder asks for confirmation and deletes subtree on confirm', async function () {

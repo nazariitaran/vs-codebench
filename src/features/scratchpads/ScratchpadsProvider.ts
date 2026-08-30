@@ -4,6 +4,7 @@ import { ScratchpadItem } from './views/ScratchpadItem';
 import { ScratchpadFolderTreeItem } from './views/ScratchpadFolderTreeItem';
 import { ScratchpadService, ImportResult } from './ScratchpadService';
 import { ScratchpadFolder } from './Models';
+import { tabInputUri } from './tabUtils';
 
 const LANGUAGE_TO_EXTENSION: Record<string, string> = {
   javascript: '.js',
@@ -535,8 +536,7 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
     return vscode.window.tabGroups.all
       .flatMap(group => group.tabs)
       .find((candidateTab) => {
-        const input = candidateTab.input as { uri?: vscode.Uri } | undefined;
-        return input?.uri?.toString() === target;
+        return tabInputUri(candidateTab.input)?.toString() === target;
       });
   }
 
