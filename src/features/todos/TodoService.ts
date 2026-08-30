@@ -1,6 +1,6 @@
 import { Todo, TodoData, TodoStats, CURRENT_TODO_VERSION } from './Models';
 import { StorageService, createNamespacedStorage, NamespacedStorageService } from '../../common/storage/StorageService';
-import { v4 as uuidv4 } from 'uuid';
+import { randomId } from '../../common/utils/idUtils';
 import * as vscode from 'vscode';
 
 export class TodoService {
@@ -42,7 +42,7 @@ export class TodoService {
 
   async addTodo(text: string, parentId?: string): Promise<Todo> {
     const newTodo: Todo = {
-      id: uuidv4(),
+      id: randomId(),
       text: text.trim(),
       done: false,
       createdAt: Date.now(),

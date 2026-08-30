@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { randomId } from '../../common/utils/idUtils';
 import * as fs from 'fs';
 import { ScratchFile, ScratchpadFolder, ScratchpadData, CURRENT_SCRATCHPAD_VERSION, MAX_SCRATCH_FILES } from './Models';
 import { NamespacedStorageService, createNamespacedStorage } from '../../common/storage/StorageService';
@@ -117,7 +117,7 @@ export class ScratchpadService {
     const maxOrder = orders.length > 0 ? Math.max(...orders) : -1;
 
     const newFolder: ScratchpadFolder = {
-      id: uuidv4(),
+      id: randomId(),
       name: name.trim(),
       parentId,
       createdAt: Date.now(),
@@ -453,7 +453,7 @@ export class ScratchpadService {
   }
 
   async createScratchFile(fileName: string, language?: string, parentFolderId?: string): Promise<ScratchFile> {
-    const id = uuidv4();
+    const id = randomId();
 
     const scratchFile: ScratchFile = {
       id,

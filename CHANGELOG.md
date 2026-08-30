@@ -1,6 +1,8 @@
 # Unreleased
 
 - Fixed "Save Unsaved File as Scratchpad" prompting to save the untitled editor by discarding its buffer before close and opening the new scratchpad automatically.
+- Replaced the `uuid` runtime dependency with a `randomId()` helper backed by Node's `crypto.randomUUID()`. Existing stored IDs are unchanged.
+- Upgraded `@vscode/test-cli` to 0.0.15 and `@vscode/test-electron` to 3.1.0 so tests launch on current macOS VS Code, and pinned mocha's `serialize-javascript` and `diff` packages to patched versions.
 
 ---
 
