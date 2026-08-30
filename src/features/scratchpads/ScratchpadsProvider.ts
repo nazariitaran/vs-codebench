@@ -354,7 +354,12 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
     const extension = this.getExtensionForDocument(document);
     const content = document.getText();
 
-    await this.closeUntitledEditor(document);
+    try {
+      await this.closeUntitledEditor(activeEditor);
+    } catch (error) {
+      console.error('Failed to close untitled editor after saving as scratchpad:', error);
+    }
+
     await this.createScratchpadFromExtension(extension, content);
   }
 
@@ -510,52 +515,55 @@ export class ScratchpadsProvider implements vscode.TreeDataProvider<TreeItem> {
     return mappedExtension || '.txt';
   }
 
-  private async discardUntitledContent(document: vscode.TextDocument): Promise<void> {
-    const text = document.getText();
-    if (text.length === 0) {
+  private async discardUntitledContent(editor: vscode.TextEditor): Promise<void> {
+    const document = editor.document;
+    if (document.isClosed || document.getText().length === 0) {
       return;
     }
 
-    const edit = new vscode.WorkspaceEdit();
-    const fullRange = new vscode.Range(
-      document.positionAt(0),
-      document.positionAt(text.length)
-    );
-    edit.replace(document.uri, fullRange, '');
-    await vscode.workspace.applyEdit(edit);
+    // Edit through the live editor. Avoid WorkspaceEdit/tab scans here: some tabs
+    // (especially in Cursor) have no `input`, and reading `input.uri` throws.
+    await editor.edit((editBuilder) => {
+      const lastLine = document.lineCount - 1;
+      const lastChar = document.lineAt(lastLine).text.length;
+      editBuilder.delete(new vscode.Range(0, 0, lastLine, lastChar));
+    });
   }
 
-  private async closeUntitledEditor(document: vscode.TextDocument): Promise<void> {
-    await this.discardUntitledContent(document);
-
-    const target = document.uri.toString();
-    const tab = vscode.window.tabGroups.all
+  private findTabByDocumentUri(uri: vscode.Uri): vscode.Tab | undefined {
+    const target = uri.toString();
+    return vscode.window.tabGroups.all
       .flatMap(group => group.tabs)
       .find((candidateTab) => {
-        const input = candidateTab.input as { uri?: vscode.Uri };
-        return input.uri?.toString() === target;
+        const input = candidateTab.input as { uri?: vscode.Uri } | undefined;
+        return input?.uri?.toString() === target;
       });
+  }
 
-    // Emptying an untitled buffer restores its original state so the tab can close
-    // without the "Do you want to save this file?" prompt.
-    if (tab && !document.isDirty) {
-      await vscode.window.tabGroups.close(tab, true);
+  private async closeUntitledEditor(editor: vscode.TextEditor): Promise<void> {
+    const document = editor.document;
+    await this.discardUntitledContent(editor);
+
+    if (document.isClosed) {
       return;
     }
 
-    const matchingEditor = vscode.window.visibleTextEditors
-      .find(editor => editor.document.uri.toString() === target);
-
-    if (matchingEditor) {
-      await vscode.window.showTextDocument(matchingEditor.document, { preview: true, preserveFocus: false });
-      try {
-        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-        return;
-      } catch {
-        // Fall through to tab close if revert is unavailable.
-      }
+    // Revert-and-close the still-active untitled tab so VS Code does not prompt to save.
+    if (vscode.window.activeTextEditor?.document?.uri?.toString() !== document.uri.toString()) {
+      await vscode.window.showTextDocument(document, { preview: true, preserveFocus: false });
     }
 
+    try {
+      await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    } catch {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+    }
+
+    if (document.isClosed) {
+      return;
+    }
+
+    const tab = this.findTabByDocumentUri(document.uri);
     if (tab) {
       await vscode.window.tabGroups.close(tab, true);
     }

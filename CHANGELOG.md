@@ -1,6 +1,7 @@
 # Unreleased
 
 - Fixed "Save Unsaved File as Scratchpad" prompting to save the untitled editor by discarding its buffer before close and opening the new scratchpad automatically.
+- Fixed a crash (`Cannot read properties of undefined (reading 'uri')`) when saving an untitled editor as a scratchpad if other tabs have no text URI.
 
 ---
 
