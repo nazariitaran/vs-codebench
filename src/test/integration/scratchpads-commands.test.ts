@@ -96,8 +96,8 @@ suite('Scratchpads: command-driven flows', () => {
     const hasUntitledTab = vscode.window.tabGroups.all
       .flatMap(group => group.tabs)
       .some(tab => {
-        const input = tab.input as { uri?: vscode.Uri };
-        return input.uri?.toString() === untitledDoc.uri.toString();
+        const input = tab.input as { uri?: vscode.Uri } | undefined;
+        return input?.uri?.toString() === untitledDoc.uri.toString();
       });
     assert.strictEqual(hasUntitledTab, false, 'Untitled source editor should be closed after save');
     assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed without a save prompt');
@@ -138,8 +138,8 @@ suite('Scratchpads: command-driven flows', () => {
     const hasUntitledTab = vscode.window.tabGroups.all
       .flatMap(group => group.tabs)
       .some(tab => {
-        const input = tab.input as { uri?: vscode.Uri };
-        return input.uri?.toString() === untitledDoc.uri.toString();
+        const input = tab.input as { uri?: vscode.Uri } | undefined;
+        return input?.uri?.toString() === untitledDoc.uri.toString();
       });
     assert.strictEqual(hasUntitledTab, false, 'Untitled source editor should be closed after save');
     assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed without a save prompt');
@@ -148,6 +148,50 @@ suite('Scratchpads: command-driven flows', () => {
     assert.ok(activeDoc, 'Scratchpad should be opened automatically');
     assert.strictEqual(activeDoc?.uri.scheme, 'codebench-scratchpad');
     assert.strictEqual(activeDoc?.getText(), content, 'Opened scratchpad should show the original untitled content');
+  });
+
+  test('Saves untitled editor as scratchpad when a non-text tab is also open', async function () {
+    this.timeout(20000);
+    const { scratchpadsProvider } = extension.exports as any;
+    assert.ok(scratchpadsProvider, 'scratchpadsProvider should be available');
+
+    for (const f of [...scratchpadsProvider.scratchpadService.getScratchFiles()]) {
+      await scratchpadsProvider.scratchpadService.deleteScratchFile(f.id);
+    }
+
+    const panel = vscode.window.createWebviewPanel(
+      'codebenchTestWebview',
+      'Test Panel',
+      vscode.ViewColumn.Beside,
+      {}
+    );
+
+    try {
+      const content = 'notes from mixed tabs';
+      const untitledDoc = await vscode.workspace.openTextDocument({
+        language: 'plaintext',
+        content
+      });
+      await vscode.window.showTextDocument(untitledDoc, { preview: false, preserveFocus: false });
+
+      await vscode.commands.executeCommand('vs-codebench.saveUnsavedAsScratchpad');
+
+      const files = scratchpadsProvider.scratchpadService.getScratchFiles();
+      assert.strictEqual(files.length, 1, 'One scratchpad should be created');
+      assert.strictEqual(
+        scratchpadsProvider.scratchpadService.loadFileContent(files[0].id),
+        content,
+        'Scratchpad should preserve untitled editor content'
+      );
+      assert.strictEqual(untitledDoc.isClosed, true, 'Untitled document should be closed');
+
+      const activeDoc = vscode.window.activeTextEditor?.document;
+      assert.ok(activeDoc, 'Scratchpad should be opened automatically');
+      assert.strictEqual(activeDoc?.uri.scheme, 'codebench-scratchpad');
+      assert.strictEqual(activeDoc?.getText(), content);
+    } finally {
+      panel.dispose();
+    }
   });
 
   test('Delete scratchpad folder asks for confirmation and deletes subtree on confirm', async function () {
