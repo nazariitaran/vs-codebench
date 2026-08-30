@@ -4,7 +4,7 @@ import { ScratchpadItem } from './views/ScratchpadItem';
 import { ScratchpadFolderTreeItem } from './views/ScratchpadFolderTreeItem';
 import { ScratchpadService, ImportResult } from './ScratchpadService';
 import { ScratchpadFolder } from './Models';
-import { tabInputUri } from './tabUtils';
+import { tabInputUri } from '../../common/utils/tabUtils';
 
 const LANGUAGE_TO_EXTENSION: Record<string, string> = {
   javascript: '.js',

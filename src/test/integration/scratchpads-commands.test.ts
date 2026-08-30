@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { tabInputUri } from '../../features/scratchpads/tabUtils';
+import { tabInputUri } from '../../common/utils/tabUtils';
 
 async function createUntitledEditorWithContent(content: string, language: string): Promise<vscode.TextDocument> {
   await vscode.commands.executeCommand('workbench.action.files.newUntitledFile');
