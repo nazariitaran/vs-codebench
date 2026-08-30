@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { tabInputUri } from '../../features/scratchpads/tabUtils';
+import { tabInputUri } from '../../../common/utils/tabUtils';
 
 suite('tabInputUri', () => {
   test('does not throw when input is missing', () => {
