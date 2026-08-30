@@ -142,8 +142,15 @@ console.log('Even numbers:', evenNumbers);`;
     await vscode.commands.executeCommand('vs-codebench.toggleTodo', firstItem);
     await vscode.commands.executeCommand('vs-codebench.toggleTodo', parentItem);
 
-    const stats1 = todosProvider.getTodoStats();
-    assert.strictEqual(stats1.completed, 2, 'Should have 2 completed todos');
+    const todosAfterToggle = todosProvider.getTodos();
+    assert.ok(
+      todosAfterToggle.find((t: any) => t.text === 'Implement error handling')?.done,
+      'First todo should be completed'
+    );
+    assert.ok(
+      todosAfterToggle.find((t: any) => t.text === 'Write unit tests')?.done,
+      'Parent todo should be completed'
+    );
 
     const rootItemsAfterCheck = await todosProvider.getChildren();
     for (const root of rootItemsAfterCheck) {
