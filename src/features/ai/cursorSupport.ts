@@ -54,24 +54,33 @@ function registerCursorSupportUnsafe(
   }
 
   const version = context.extension?.packageJSON?.version ?? '0.0.0';
-  const mcpServer = new CodebenchMcpHttpServer(tools, version);
   const mcp = cursor.mcp;
   let disposed = false;
+  let mcpDead = false;
+
+  const unregisterMcp = () => {
+    try {
+      mcp.unregisterServer(CODEBENCH_MCP_SERVER_NAME);
+    } catch (error) {
+      console.error('VS CodeBench Cursor MCP unregister failed', error);
+    }
+  };
+
+  const mcpServer = new CodebenchMcpHttpServer(tools, version, () => {
+    mcpDead = true;
+    unregisterMcp();
+  });
 
   context.subscriptions.push({
     dispose: () => {
       disposed = true;
-      try {
-        mcp.unregisterServer(CODEBENCH_MCP_SERVER_NAME);
-      } catch (error) {
-        console.error('VS CodeBench Cursor MCP unregister failed', error);
-      }
+      unregisterMcp();
       void mcpServer.dispose();
     }
   });
 
   void mcpServer.start().then(({ url, token }) => {
-    if (disposed) {
+    if (disposed || mcpDead) {
       void mcpServer.dispose();
       return;
     }
