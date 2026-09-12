@@ -39,12 +39,14 @@ export interface McpServerInfo {
 export class CodebenchMcpHttpServer {
   private server: http.Server | undefined;
   private token = '';
+  private disposing = false;
   private readonly toolsByName: Map<string, CodebenchTool>;
   private readonly sseResponses = new Set<http.ServerResponse>();
 
   constructor(
     tools: CodebenchTool[],
-    private readonly serverVersion: string
+    private readonly serverVersion: string,
+    private readonly onRuntimeError?: (error: Error) => void
   ) {
     this.toolsByName = new Map(tools.map(tool => [tool.name, tool]));
   }
@@ -58,15 +60,35 @@ export class CodebenchMcpHttpServer {
       };
     }
 
+    this.disposing = false;
     this.token = randomBytes(32).toString('hex');
     this.server = http.createServer((req, res) => {
       void this.handleRequest(req, res);
     });
 
-    await new Promise<void>((resolve, reject) => {
-      this.server!.once('error', reject);
-      this.server!.listen(0, '127.0.0.1', () => resolve());
-    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const server = this.server!;
+        const onListenError = (error: Error) => {
+          server.off('listening', onListening);
+          reject(error);
+        };
+        const onListening = () => {
+          server.off('error', onListenError);
+          resolve();
+        };
+        server.once('error', onListenError);
+        server.once('listening', onListening);
+        server.listen(0, '127.0.0.1');
+      });
+    } catch (error) {
+      const server = this.server;
+      this.server = undefined;
+      server?.close();
+      throw error;
+    }
+
+    this.server.on('error', this.handleRuntimeError);
 
     const address = this.server.address() as AddressInfo;
     return {
@@ -76,6 +98,11 @@ export class CodebenchMcpHttpServer {
   }
 
   async dispose(): Promise<void> {
+    if (this.disposing && !this.server) {
+      return;
+    }
+
+    this.disposing = true;
     for (const res of this.sseResponses) {
       res.end();
     }
@@ -87,10 +114,22 @@ export class CodebenchMcpHttpServer {
       return;
     }
 
+    server.off('error', this.handleRuntimeError);
+
     await new Promise<void>(resolve => {
       server.close(() => resolve());
     });
   }
+
+  private readonly handleRuntimeError = (error: Error): void => {
+    if (this.disposing || !this.server) {
+      return;
+    }
+
+    console.error('VS CodeBench Cursor MCP server error', error);
+    this.onRuntimeError?.(error);
+    void this.dispose();
+  };
 
   private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');

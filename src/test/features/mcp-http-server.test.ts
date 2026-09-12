@@ -138,4 +138,39 @@ suite('Codebench MCP HTTP server', () => {
     });
     assert.strictEqual(result.body.result.isError, true);
   });
+
+  test('runtime server errors invoke the callback and close the listener', async function () {
+    this.timeout(20000);
+
+    let runtimeError: Error | undefined;
+    const watched = new CodebenchMcpHttpServer(
+      createToolCatalog({ todosProvider, bookmarksProvider, scratchpadsProvider }),
+      '1.3.0',
+      error => {
+        runtimeError = error;
+      }
+    );
+
+    const started = await watched.start();
+    const httpServer = (watched as unknown as { server?: import('http').Server }).server;
+    assert.ok(httpServer);
+
+    httpServer.emit('error', new Error('simulated accept failure'));
+    assert.ok(runtimeError);
+    assert.strictEqual(runtimeError.message, 'simulated accept failure');
+
+    await watched.dispose();
+
+    let fetchFailed = false;
+    try {
+      await fetch(started.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+    } catch {
+      fetchFailed = true;
+    }
+    assert.ok(fetchFailed, 'closed MCP listener should refuse connections');
+  });
 });
