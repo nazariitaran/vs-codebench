@@ -38,19 +38,31 @@ export interface CursorApi {
 }
 
 export function getCursorApi(): CursorApi | undefined {
-  const cursor = (vscode as unknown as { cursor?: CursorApi }).cursor;
-  if (!cursor) {
+  try {
+    const cursor = (vscode as unknown as { cursor?: CursorApi }).cursor;
+    if (!cursor) {
+      return undefined;
+    }
+    return cursor;
+  } catch {
     return undefined;
   }
-  return cursor;
 }
 
 export function canRegisterCursorMcp(cursor: CursorApi | undefined): boolean {
-  return typeof cursor?.mcp?.registerServer === 'function'
-    && typeof cursor?.mcp?.unregisterServer === 'function';
+  try {
+    return typeof cursor?.mcp?.registerServer === 'function'
+      && typeof cursor?.mcp?.unregisterServer === 'function';
+  } catch {
+    return false;
+  }
 }
 
 export function canRegisterCursorPlugins(cursor: CursorApi | undefined): boolean {
-  return typeof cursor?.plugins?.registerPath === 'function'
-    && typeof cursor?.plugins?.unregisterPath === 'function';
+  try {
+    return typeof cursor?.plugins?.registerPath === 'function'
+      && typeof cursor?.plugins?.unregisterPath === 'function';
+  } catch {
+    return false;
+  }
 }

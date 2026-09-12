@@ -60,7 +60,11 @@ export function activate(context: vscode.ExtensionContext) {
   registerTodoCommands(context, todosProvider);
   registerBookmarkCommands(context, bookmarksProvider);
   registerScratchpadCommands(context, scratchpadsProvider);
-  registerAiIntegrations(context, todosProvider, bookmarksProvider, scratchpadsProvider);
+  try {
+    registerAiIntegrations(context, todosProvider, bookmarksProvider, scratchpadsProvider);
+  } catch (error) {
+    console.error('VS CodeBench AI integrations failed', error);
+  }
 
   return {
     todosProvider,
