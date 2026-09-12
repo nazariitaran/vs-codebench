@@ -681,7 +681,7 @@
         {
           "id": "codebenchExplorer",
           "title": "CodeBench",
-          "icon": "media/vscodebench.png"
+          "icon": "media/vscodebench.svg"
         }
       ]
     },
