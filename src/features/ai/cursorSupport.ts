@@ -86,10 +86,17 @@ function registerCursorSupportUnsafe(
     }
 
     try {
+      // Cursor currently drops `headers` from vscode.cursor.mcp.registerServer
+      // (https://forum.cursor.com/t/152267), so also put the loopback
+      // session token on the URL. Keep Authorization for when the
+      // extension API starts sending headers.
+      const registeredUrl = new URL(url);
+      registeredUrl.searchParams.set('token', token);
+
       mcp.registerServer({
         name: CODEBENCH_MCP_SERVER_NAME,
         server: {
-          url,
+          url: registeredUrl.toString(),
           headers: {
             Authorization: `Bearer ${token}`
           }

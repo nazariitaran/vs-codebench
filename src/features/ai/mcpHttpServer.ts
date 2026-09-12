@@ -138,7 +138,7 @@ export class CodebenchMcpHttpServer {
       return;
     }
 
-    if (!this.isAuthorized(req)) {
+    if (!this.isAuthorized(req, url)) {
       writeJson(res, 401, { error: 'Unauthorized' });
       return;
     }
@@ -184,9 +184,15 @@ export class CodebenchMcpHttpServer {
     writeJson(res, 200, response);
   }
 
-  private isAuthorized(req: http.IncomingMessage): boolean {
+  private isAuthorized(req: http.IncomingMessage, url: URL): boolean {
     const header = req.headers.authorization;
-    return header === `Bearer ${this.token}`;
+    if (header === `Bearer ${this.token}`) {
+      return true;
+    }
+
+    // Query-token fallback for Cursor's registerServer header bug:
+    // https://forum.cursor.com/t/152267
+    return url.searchParams.get('token') === this.token;
   }
 
   private handleSse(res: http.ServerResponse): void {
