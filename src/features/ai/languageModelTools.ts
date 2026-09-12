@@ -4,7 +4,19 @@ import { CodebenchTool } from './toolCatalog';
 export function canRegisterLanguageModelTools(
   lm: { registerTool?: unknown } | undefined
 ): boolean {
-  return typeof lm?.registerTool === 'function';
+  try {
+    return typeof lm?.registerTool === 'function';
+  } catch {
+    return false;
+  }
+}
+
+function getLanguageModelApi(): typeof vscode.lm | undefined {
+  try {
+    return vscode.lm;
+  } catch {
+    return undefined;
+  }
 }
 
 function resultFromObject(payload: unknown): vscode.LanguageModelToolResult {
@@ -28,13 +40,18 @@ export function registerLanguageModelTools(
   context: vscode.ExtensionContext,
   tools: CodebenchTool[]
 ): void {
-  if (!canRegisterLanguageModelTools(vscode.lm)) {
+  const lm = getLanguageModelApi();
+  if (!canRegisterLanguageModelTools(lm) || !lm) {
     return;
   }
 
-  for (const tool of tools) {
-    context.subscriptions.push(
-      vscode.lm.registerTool(tool.name, new CatalogLanguageModelTool(tool))
-    );
+  try {
+    for (const tool of tools) {
+      context.subscriptions.push(
+        lm.registerTool(tool.name, new CatalogLanguageModelTool(tool))
+      );
+    }
+  } catch (error) {
+    console.error('VS CodeBench language model tools failed', error);
   }
 }

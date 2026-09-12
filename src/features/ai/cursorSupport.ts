@@ -14,6 +14,17 @@ export function registerCursorSupport(
   context: vscode.ExtensionContext,
   tools: CodebenchTool[]
 ): void {
+  try {
+    registerCursorSupportUnsafe(context, tools);
+  } catch (error) {
+    console.error('VS CodeBench Cursor integrations failed', error);
+  }
+}
+
+function registerCursorSupportUnsafe(
+  context: vscode.ExtensionContext,
+  tools: CodebenchTool[]
+): void {
   const cursor = getCursorApi();
   if (!cursor) {
     return;
@@ -21,10 +32,21 @@ export function registerCursorSupport(
 
   if (canRegisterCursorPlugins(cursor) && cursor.plugins) {
     const pluginDir = path.join(context.extensionPath, CODEBENCH_PLUGIN_DIR);
-    cursor.plugins.registerPath(pluginDir);
-    context.subscriptions.push({
-      dispose: () => cursor.plugins?.unregisterPath(pluginDir)
-    });
+    const plugins = cursor.plugins;
+    try {
+      plugins.registerPath(pluginDir);
+      context.subscriptions.push({
+        dispose: () => {
+          try {
+            plugins.unregisterPath(pluginDir);
+          } catch (error) {
+            console.error('VS CodeBench Cursor plugin unregister failed', error);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('VS CodeBench Cursor plugin registration failed', error);
+    }
   }
 
   if (!canRegisterCursorMcp(cursor) || !cursor.mcp) {
@@ -39,7 +61,11 @@ export function registerCursorSupport(
   context.subscriptions.push({
     dispose: () => {
       disposed = true;
-      mcp.unregisterServer(CODEBENCH_MCP_SERVER_NAME);
+      try {
+        mcp.unregisterServer(CODEBENCH_MCP_SERVER_NAME);
+      } catch (error) {
+        console.error('VS CodeBench Cursor MCP unregister failed', error);
+      }
       void mcpServer.dispose();
     }
   });
@@ -50,16 +76,22 @@ export function registerCursorSupport(
       return;
     }
 
-    mcp.registerServer({
-      name: CODEBENCH_MCP_SERVER_NAME,
-      server: {
-        url,
-        headers: {
-          Authorization: `Bearer ${token}`
+    try {
+      mcp.registerServer({
+        name: CODEBENCH_MCP_SERVER_NAME,
+        server: {
+          url,
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('VS CodeBench Cursor MCP server registration failed', error);
+      void mcpServer.dispose();
+    }
   }).catch(error => {
     console.error('Failed to start VS CodeBench Cursor MCP server', error);
+    void mcpServer.dispose();
   });
 }
