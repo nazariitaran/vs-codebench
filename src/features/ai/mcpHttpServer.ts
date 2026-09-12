@@ -269,7 +269,7 @@ export class CodebenchMcpHttpServer {
         name: 'vs-codebench',
         version: this.serverVersion
       },
-      instructions: 'VS CodeBench tools manage workspace-scoped todos, bookmarks, and scratchpads. Use get_* tools to resolve IDs before mutations. Scratchpad content is not in the git workspace; read it with codebench_get_scratchpad_content.'
+      instructions: 'VS CodeBench tools manage workspace-scoped bookmarks and scratchpads. Use get_* tools to resolve IDs before mutations. Scratchpad content is not in the git workspace; read it with codebench_get_scratchpad_content.'
     };
   }
 

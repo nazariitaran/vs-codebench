@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { BookmarksProvider } from '../bookmarks/BookmarksProvider';
 import { ScratchpadsProvider } from '../scratchpads/ScratchpadsProvider';
-import { TodosProvider } from '../todos/TodosProvider';
 import { registerCursorSupport } from './cursorSupport';
 import { registerLanguageModelTools } from './languageModelTools';
 import { createToolCatalog } from './toolCatalog';
@@ -14,12 +13,10 @@ export { createToolCatalog, CODEBENCH_TOOL_NAMES } from './toolCatalog';
 
 export function registerAiIntegrations(
   context: vscode.ExtensionContext,
-  todosProvider: TodosProvider,
   bookmarksProvider: BookmarksProvider,
   scratchpadsProvider: ScratchpadsProvider
 ): void {
   const tools = createToolCatalog({
-    todosProvider,
     bookmarksProvider,
     scratchpadsProvider
   });

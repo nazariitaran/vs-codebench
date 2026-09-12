@@ -102,7 +102,7 @@ Scratchpads additionally include `ScratchpadFileSystemProvider.ts`, which expose
 ### GitHub Copilot Tools
 - Shared handlers live in `src/features/ai/` and are registered from `registerAiIntegrations()`.
 - Tools are contributed via `package.json` → `contributes.languageModelTools` and registered with `vscode.lm.registerTool(...)` only when that API exists.
-- Todo tools (5): `codebench_get_todos`, `codebench_add_todo`, `codebench_toggle_todo`, `codebench_rename_todo`, `codebench_remove_todo`.
+- Todo tools are intentionally omitted so they do not collide with IDE agent-task todo tools.
 - Bookmark tools (8): `codebench_get_bookmarks`, `codebench_add_bookmark`, `codebench_move_bookmark_to_folder`, `codebench_rename_bookmark`, `codebench_set_bookmark_color`, `codebench_remove_bookmark`, `codebench_create_bookmark_folder`, `codebench_remove_bookmark_folder`.
 - Scratchpad tools (11): `codebench_get_scratchpads`, `codebench_get_scratchpad_content`, `codebench_create_scratchpad`, `codebench_update_scratchpad_content`, `codebench_rename_scratchpad`, `codebench_delete_scratchpad`, `codebench_create_scratchpad_folder`, `codebench_rename_scratchpad_folder`, `codebench_move_scratchpad_to_folder`, `codebench_move_scratchpad_folder`, `codebench_delete_scratchpad_folder`.
 - `codebench_get_scratchpads` defaults to root-level scratchpads when `folderId` is omitted, but it returns folder metadata and supports `includeAll: true` for workspace-wide listing.

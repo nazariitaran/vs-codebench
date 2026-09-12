@@ -1,7 +1,7 @@
 # Unreleased
 
 - Added Cursor support: Open VSX publishing, a local MCP server for Cursor Agent, and a bundled CodeBench skill.
-- Added GitHub Copilot todo tools (list, add, toggle, rename, remove).
+- Removed GitHub Copilot and Cursor MCP todo tools so they do not collide with IDE agent-task todo tools. Bookmarks and scratchpads remain available to both.
 - Language model tool registration is now skipped when `vscode.lm.registerTool` is unavailable, so activation still succeeds in Cursor.
 - Fixed "Save Unsaved File as Scratchpad" prompting to save the untitled editor by discarding its buffer before close and opening the new scratchpad automatically.
 - Replaced the `uuid` runtime dependency with a `randomId()` helper backed by Node's `crypto.randomUUID()`. Existing stored IDs are unchanged.
