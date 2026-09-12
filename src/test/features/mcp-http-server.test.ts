@@ -87,6 +87,27 @@ suite('Codebench MCP HTTP server', () => {
     assert.strictEqual(result.status, 401);
   });
 
+  test('accepts the session token as a query parameter', async () => {
+    const response = await fetch(`${url}?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: 'codebench-test', version: '0.0.0' }
+        }
+      })
+    });
+
+    assert.strictEqual(response.status, 200);
+    const body = await response.json() as { result?: { serverInfo?: { name?: string } } };
+    assert.strictEqual(body.result?.serverInfo?.name, 'vs-codebench');
+  });
+
   test('initializes and lists codebench tools', async function () {
     this.timeout(20000);
 
