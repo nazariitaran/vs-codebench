@@ -4,10 +4,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { BookmarksProvider } from '../../features/bookmarks/BookmarksProvider';
 import { ScratchpadsProvider } from '../../features/scratchpads/ScratchpadsProvider';
-import { TodosProvider } from '../../features/todos/TodosProvider';
 import { addBookmark, getBookmarks, removeBookmark } from '../../features/ai/bookmarkHandlers';
 import { createScratchpad, getScratchpadContent, getScratchpads } from '../../features/ai/scratchpadHandlers';
-import { addTodo, getTodos, removeTodo, toggleTodo } from '../../features/ai/todoHandlers';
 import { createMockExtensionContext } from '../testUtils';
 
 suite('AI tool handlers', () => {
@@ -24,43 +22,6 @@ suite('AI tool handlers', () => {
     } catch {
       // ignore
     }
-  });
-
-  suite('todos', () => {
-    let todosProvider: TodosProvider;
-
-    setup(() => {
-      todosProvider = new TodosProvider(mockContext);
-    });
-
-    teardown(() => {
-      todosProvider.dispose();
-    });
-
-    test('adds, lists, toggles, and removes a todo', async () => {
-      const created = await addTodo(todosProvider, { text: 'Ship Cursor support' });
-      assert.strictEqual(created.success, true);
-      assert.ok(created.todo?.id);
-
-      const listed = await getTodos(todosProvider);
-      assert.strictEqual(listed.count, 1);
-      assert.strictEqual(listed.stats.total, 1);
-      assert.strictEqual(listed.todos[0].done, false);
-
-      const toggled = await toggleTodo(todosProvider, { todoId: created.todo!.id });
-      assert.strictEqual(toggled.todo.done, true);
-
-      const removed = await removeTodo(todosProvider, { todoId: created.todo!.id });
-      assert.strictEqual(removed.deletedTodoId, created.todo!.id);
-      assert.strictEqual((await getTodos(todosProvider)).count, 0);
-    });
-
-    test('rejects empty todo text', async () => {
-      await assert.rejects(
-        () => addTodo(todosProvider, { text: '   ' }),
-        /Text must be between 1 and 75 characters/
-      );
-    });
   });
 
   suite('bookmarks', () => {

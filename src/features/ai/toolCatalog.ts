@@ -1,9 +1,7 @@
 import { BookmarksProvider } from '../bookmarks/BookmarksProvider';
 import { ScratchpadsProvider } from '../scratchpads/ScratchpadsProvider';
-import { TodosProvider } from '../todos/TodosProvider';
 import * as bookmarkHandlers from './bookmarkHandlers';
 import * as scratchpadHandlers from './scratchpadHandlers';
-import * as todoHandlers from './todoHandlers';
 
 export interface CodebenchTool {
   name: string;
@@ -17,17 +15,11 @@ function asInput<T>(input: Record<string, unknown>): T {
 }
 
 export interface CodebenchToolDependencies {
-  todosProvider: TodosProvider;
   bookmarksProvider: BookmarksProvider;
   scratchpadsProvider: ScratchpadsProvider;
 }
 
 export const CODEBENCH_TOOL_NAMES = [
-  'codebench_get_todos',
-  'codebench_add_todo',
-  'codebench_toggle_todo',
-  'codebench_rename_todo',
-  'codebench_remove_todo',
   'codebench_get_bookmarks',
   'codebench_add_bookmark',
   'codebench_move_bookmark_to_folder',
@@ -51,97 +43,6 @@ export const CODEBENCH_TOOL_NAMES = [
 
 export function createToolCatalog(deps: CodebenchToolDependencies): CodebenchTool[] {
   return [
-    {
-      name: 'codebench_get_todos',
-      description: 'Get VS CodeBench todos and completion stats for the current workspace. Use this before todo mutations when you need todoId values.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          includeCompleted: {
-            type: 'boolean',
-            description: 'When false, omit completed todos. Defaults to true.'
-          },
-          parentId: {
-            type: 'string',
-            description: 'Optional parent todo ID to list only that todo\'s children.'
-          }
-        },
-        additionalProperties: false
-      },
-      invoke: input => todoHandlers.getTodos(deps.todosProvider, asInput(input))
-    },
-    {
-      name: 'codebench_add_todo',
-      description: 'Create a VS CodeBench todo at root or as a sub-todo. Text is 1-75 characters. Nesting is limited to 2 levels below a root todo.',
-      inputSchema: {
-        type: 'object',
-        required: ['text'],
-        properties: {
-          text: {
-            type: 'string',
-            description: 'Todo text (1-75 characters).'
-          },
-          parentId: {
-            type: 'string',
-            description: 'Optional parent todo ID to create a sub-todo.'
-          }
-        },
-        additionalProperties: false
-      },
-      invoke: input => todoHandlers.addTodo(deps.todosProvider, asInput(input))
-    },
-    {
-      name: 'codebench_toggle_todo',
-      description: 'Toggle the completed state of a VS CodeBench todo by todoId.',
-      inputSchema: {
-        type: 'object',
-        required: ['todoId'],
-        properties: {
-          todoId: {
-            type: 'string',
-            description: 'ID of todo to toggle.'
-          }
-        },
-        additionalProperties: false
-      },
-      invoke: input => todoHandlers.toggleTodo(deps.todosProvider, asInput(input))
-    },
-    {
-      name: 'codebench_rename_todo',
-      description: 'Update the text of a VS CodeBench todo by todoId.',
-      inputSchema: {
-        type: 'object',
-        required: ['todoId', 'text'],
-        properties: {
-          todoId: {
-            type: 'string',
-            description: 'ID of todo to rename.'
-          },
-          text: {
-            type: 'string',
-            description: 'New todo text (1-75 characters).'
-          }
-        },
-        additionalProperties: false
-      },
-      invoke: input => todoHandlers.renameTodo(deps.todosProvider, asInput(input))
-    },
-    {
-      name: 'codebench_remove_todo',
-      description: 'Delete a VS CodeBench todo by todoId. Nested children are also removed.',
-      inputSchema: {
-        type: 'object',
-        required: ['todoId'],
-        properties: {
-          todoId: {
-            type: 'string',
-            description: 'ID of todo to delete.'
-          }
-        },
-        additionalProperties: false
-      },
-      invoke: input => todoHandlers.removeTodo(deps.todosProvider, asInput(input))
-    },
     {
       name: 'codebench_get_bookmarks',
       description: 'Get VS CodeBench bookmarks and folders in the current workspace. Use this before bookmark mutations when you need bookmarkId or folderId values.',

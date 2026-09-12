@@ -6,7 +6,6 @@ import { CodebenchMcpHttpServer } from '../../features/ai/mcpHttpServer';
 import { canRegisterLanguageModelTools, createToolCatalog } from '../../features/ai';
 import { BookmarksProvider } from '../../features/bookmarks/BookmarksProvider';
 import { ScratchpadsProvider } from '../../features/scratchpads/ScratchpadsProvider';
-import { TodosProvider } from '../../features/todos/TodosProvider';
 import { createMockExtensionContext } from '../testUtils';
 
 suite('Language model tools guard', () => {
@@ -24,7 +23,6 @@ suite('Language model tools guard', () => {
 
 suite('Codebench MCP HTTP server', () => {
   let mockContext: vscode.ExtensionContext;
-  let todosProvider: TodosProvider;
   let bookmarksProvider: BookmarksProvider;
   let scratchpadsProvider: ScratchpadsProvider;
   let server: CodebenchMcpHttpServer;
@@ -34,13 +32,12 @@ suite('Codebench MCP HTTP server', () => {
   setup(async function () {
     this.timeout(30000);
     mockContext = createMockExtensionContext();
-    todosProvider = new TodosProvider(mockContext);
     bookmarksProvider = new BookmarksProvider(mockContext);
     scratchpadsProvider = new ScratchpadsProvider(mockContext);
     await scratchpadsProvider.whenReady();
 
     server = new CodebenchMcpHttpServer(
-      createToolCatalog({ todosProvider, bookmarksProvider, scratchpadsProvider }),
+      createToolCatalog({ bookmarksProvider, scratchpadsProvider }),
       '1.3.0'
     );
     const started = await server.start();
@@ -50,7 +47,6 @@ suite('Codebench MCP HTTP server', () => {
 
   teardown(async () => {
     await server.dispose();
-    todosProvider.dispose();
     bookmarksProvider.dispose();
     scratchpadsProvider.dispose();
     const tempRoot = path.dirname(mockContext.globalStorageUri.fsPath);
@@ -106,29 +102,30 @@ suite('Codebench MCP HTTP server', () => {
     const listed = await rpc('tools/list');
     assert.strictEqual(listed.status, 200);
     const names = listed.body.result.tools.map((tool: { name: string }) => tool.name);
-    assert.ok(names.includes('codebench_get_todos'));
     assert.ok(names.includes('codebench_get_bookmarks'));
     assert.ok(names.includes('codebench_get_scratchpads'));
+    assert.ok(!names.includes('codebench_get_todos'));
   });
 
-  test('calls todo tools against live provider state', async function () {
+  test('calls bookmark tools against live provider state', async function () {
     this.timeout(20000);
 
+    const fileUri = vscode.Uri.file(path.join(mockContext.globalStorageUri.fsPath, 'note.ts')).toString();
     const created = await rpc('tools/call', {
-      name: 'codebench_add_todo',
-      arguments: { text: 'MCP todo' }
+      name: 'codebench_add_bookmark',
+      arguments: { fileUri, line: 0, text: 'MCP bookmark' }
     });
     assert.strictEqual(created.body.result.isError, false);
     const createdPayload = JSON.parse(created.body.result.content[0].text);
-    assert.ok(createdPayload.todo.id);
+    assert.ok(createdPayload.bookmark.id);
 
     const listed = await rpc('tools/call', {
-      name: 'codebench_get_todos',
-      arguments: {}
+      name: 'codebench_get_bookmarks',
+      arguments: { fileUri }
     });
     const listedPayload = JSON.parse(listed.body.result.content[0].text);
     assert.strictEqual(listedPayload.count, 1);
-    assert.strictEqual(listedPayload.todos[0].text, 'MCP todo');
+    assert.strictEqual(listedPayload.bookmarks[0].text, 'MCP bookmark');
   });
 
   test('returns isError for unknown tool names', async () => {
@@ -144,7 +141,7 @@ suite('Codebench MCP HTTP server', () => {
 
     let runtimeError: Error | undefined;
     const watched = new CodebenchMcpHttpServer(
-      createToolCatalog({ todosProvider, bookmarksProvider, scratchpadsProvider }),
+      createToolCatalog({ bookmarksProvider, scratchpadsProvider }),
       '1.3.0',
       error => {
         runtimeError = error;
