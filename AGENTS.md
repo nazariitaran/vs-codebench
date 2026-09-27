@@ -162,7 +162,7 @@ Tests require a VS Code instance (Extension Host). On headless CI, `xvfb-run` is
 ## Business Rules & Limits
 - Todos: max 100 total items, max 2 levels of nesting (parent → child → grandchild), text 1–75 chars
 - Bookmarks: max 200 items, folder depth up to 3 levels, bookmark text 1–75 chars, folder name 1–75 chars
-- Scratchpads: max 400 files, folder depth up to 5 levels, file text 1–75 chars, folder name 1–75 chars
+- Scratchpads: max 400 files, folder depth up to 10 levels, file text 1–75 chars, folder name 1–75 chars
 - Bookmark colors: `default` (blue), `red`, `green`, `yellow`, `purple`
 - All commands are prefixed with `vs-codebench.`
 

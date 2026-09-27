@@ -1,8 +1,6 @@
-# Unreleased
+# 1.4.1 - September 2026
 
-- Added Cursor support: Open VSX publishing, a local MCP server for Cursor Agent, and a bundled CodeBench skill.
-- Removed GitHub Copilot and Cursor MCP todo tools so they do not collide with IDE agent-task todo tools. Bookmarks and scratchpads remain available to both.
-- Language model tool registration is now skipped when `vscode.lm.registerTool` is unavailable, so activation still succeeds in Cursor.
+- Extended platforms support: Open VSX publishing, a local MCP server for Cursor Agent, and a bundled CodeBench skill.
 - Fixed "Save Unsaved File as Scratchpad" prompting to save the untitled editor by discarding its buffer before close and opening the new scratchpad automatically.
 - Replaced the `uuid` runtime dependency with a `randomId()` helper backed by Node's `crypto.randomUUID()`. Existing stored IDs are unchanged.
 - Upgraded `@vscode/test-cli` to 0.0.15 and `@vscode/test-electron` to 3.1.0 so tests launch on current macOS VS Code, and pinned mocha's `serialize-javascript` and `diff` packages to patched versions.

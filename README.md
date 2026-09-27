@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nazariitaran/vs-codebench/actions/workflows/ci.yml)
 [![Release](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml/badge.svg)](https://github.com/nazariitaran/vs-codebench/actions/workflows/release.yml)
-[![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-v1.3.0-blue)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
+[![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-v1.4.1-blue)](https://marketplace.visualstudio.com/items?itemName=nazariitaran.vs-codebench)
 [![Open VSX](https://img.shields.io/open-vsx/v/nazariitaran/vs-codebench)](https://open-vsx.org/extension/nazariitaran/vs-codebench)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -91,6 +91,13 @@ You can change these in File > Preferences > Keyboard Shortcuts.
 - VS Code 1.101.0 or newer, or a VS Code-compatible editor such as Cursor
 
 ## Release Notes
+
+### 1.4.1
+- Extended platforms support: Open VSX publishing, a local MCP server for Cursor Agent, and a bundled CodeBench skill.
+- Fixed "Save Unsaved File as Scratchpad" prompting to save the untitled editor by discarding its buffer before close and opening the new scratchpad automatically.
+- Replaced the `uuid` runtime dependency with a `randomId()` helper backed by Node's `crypto.randomUUID()`. Existing stored IDs are unchanged.
+- Upgraded `@vscode/test-cli` to 0.0.15 and `@vscode/test-electron` to 3.1.0 so tests launch on current macOS VS Code, and pinned mocha's `serialize-javascript` and `diff` packages to patched versions.
+- Bumped GitHub Actions (`checkout`, `setup-node`, `upload-artifact`) to v6 so CI uses the Node 24 action runtime.
 
 ### 1.3.0
 - Added a scratchpad import workflow that can ingest a folder tree, preserve structure, skip binary files and symlinks, overwrite matching scratchpads in place, and generate an import summary scratchpad.
